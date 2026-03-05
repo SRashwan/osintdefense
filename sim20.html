@@ -1,0 +1,1961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tier Air Defense Sim - Aegis Command</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root { 
+            --neon: #00ff55; 
+            --neon-dim: rgba(0, 255, 85, 0.3);
+            --danger: #ff3333; 
+            --danger-glow: rgba(255, 51, 51, 0.6);
+            --bg: #030604; 
+            --panel: rgba(5, 15, 10, 0.85);
+            --text: #c0d6c0;
+            
+            --tamir: #ffff55;
+            --stunner: #55ff55;
+            --arrow: #aaaaff;
+            --chrono: #00ffff;
+            --ew: #ff00ff;
+        }
+        
+        * { box-sizing: border-box; }
+
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: 'Share Tech Mono', monospace; 
+            overflow: hidden; 
+            display: flex; 
+            height: 100vh;
+        }
+        
+        /* Tactical Sidebar */
+        #sidebar { 
+            width: 480px; 
+            background: var(--panel); 
+            border-right: 1px solid var(--neon-dim); 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            z-index: 100; 
+            box-shadow: 15px 0 50px rgba(0,255,85,0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        .header { 
+            padding: 20px; 
+            border-bottom: 1px solid var(--neon-dim); 
+            text-align: center; 
+            font-size: 1.3em; 
+            color: var(--neon);
+            text-shadow: 0 0 10px var(--neon-dim);
+            letter-spacing: 2px; 
+        }
+
+        /* View Navigation Tabs */
+        #view-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--neon-dim);
+            background: rgba(0,0,0,0.6);
+        }
+        .tab {
+            flex: 1; text-align: center; padding: 12px 5px; cursor: pointer;
+            font-size: 0.85em; letter-spacing: 1px; color: var(--text);
+            border-right: 1px solid var(--neon-dim); transition: 0.3s;
+        }
+        .tab:last-child { border-right: none; }
+        .tab:hover { background: rgba(0,255,85,0.1); color: #fff; }
+        .tab.active { background: rgba(0,255,85,0.2); color: var(--neon); font-weight: bold; text-shadow: 0 0 5px var(--neon); box-shadow: inset 0 -3px 0 var(--neon); }
+        
+        .content { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            padding: 20px; 
+        }
+        
+        .content::-webkit-scrollbar { width: 4px; }
+        .content::-webkit-scrollbar-thumb { background: var(--neon-dim); }
+
+        .theory-card { 
+            background: rgba(0, 255, 85, 0.03); 
+            border-left: 3px solid var(--neon); 
+            padding: 15px; 
+            margin-bottom: 15px; 
+            position: relative;
+        }
+
+        .theory-card.arrow { border-left-color: var(--arrow); background: rgba(170, 170, 255, 0.05); }
+        .theory-card.stunner { border-left-color: var(--stunner); }
+        .theory-card.tamir { border-left-color: var(--tamir); background: rgba(255, 255, 85, 0.05); }
+
+        .theory-card::before { content: ''; position: absolute; top: 0; right: 0; width: 10px; height: 10px; border-top: 1px solid var(--neon-dim); border-right: 1px solid var(--neon-dim); }
+        .theory-card::after { content: ''; position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; border-bottom: 1px solid var(--neon-dim); border-right: 1px solid var(--neon-dim); }
+
+        .theory-card h4 { 
+            margin: 0 0 8px 0; color: #fff; text-transform: uppercase; font-size: 0.9em;
+            letter-spacing: 1px; display: flex; justify-content: space-between;
+        }
+
+        .theory-card p { font-size: 0.75em; line-height: 1.4; color: var(--text); margin: 0 0 10px 0; }
+        
+        .math-box { 
+            background: rgba(0,0,0,0.5); padding: 8px; border: 1px solid var(--neon-dim); 
+            text-align: center; font-size: 0.85em; color: var(--neon); font-style: italic; 
+        }
+        .math-box.arrow { color: var(--arrow); border-color: rgba(170,170,255,0.4); }
+        .math-box.tamir { color: var(--tamir); border-color: rgba(255,255,85,0.4); }
+
+        /* Controls */
+        .controls { padding: 15px 20px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--neon-dim); }
+        .controls-title { font-size: 0.8em; color: var(--text); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .btn { 
+            background: transparent; color: var(--text); border: 1px solid rgba(255,255,255,0.2); 
+            padding: 10px; width: 100%; cursor: pointer; font-family: inherit; font-size: 0.85em;
+            letter-spacing: 1px; margin-bottom: 8px; transition: all 0.2s ease; position: relative;
+        }
+        .btn:hover { border-color: var(--neon); color: #fff; box-shadow: inset 0 0 15px rgba(0,255,85,0.1); }
+        .btn-salvo { background: var(--danger); color: #000; border: none; font-weight: bold; margin-top: 5px; }
+        .btn-salvo:hover { background: #ff5555; box-shadow: 0 0 20px var(--danger-glow); color: #fff; }
+
+        .btn-drill { background: var(--neon); color: #000; border: 1px solid #fff; font-weight: bold; margin-top: 15px; box-shadow: 0 0 10px var(--neon-dim); font-size: 0.9em; letter-spacing: 2px;}
+        .btn-drill:hover { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
+        
+        .btn-ability { font-weight: bold; text-shadow: 0 0 5px currentColor; }
+        .btn-ability:hover { background: currentColor; color: #000 !important; text-shadow: none; }
+
+        .pdf-btn { background: transparent; color: #fff; border: 1px solid var(--neon); padding: 8px 15px; margin-top: 10px; cursor: pointer; font-family: inherit; font-weight: bold; font-size: 0.9em; transition: 0.2s;}
+        .pdf-btn:hover { background: var(--neon); color: #000; }
+        
+        .cancel-btn { background: transparent; color: #aaa; border: 1px solid #555; padding: 5px 10px; margin-left: 10px; cursor: pointer; font-family: inherit; font-weight: bold; font-size: 0.8em; transition: 0.2s; white-space: nowrap;}
+        .cancel-btn:hover { background: #555; color: #fff; }
+
+        #fullscreen-btn {
+            position: absolute; bottom: 60px; left: 20px; z-index: 2000;
+            background: rgba(0,0,0,0.6); color: var(--neon); border: 1px solid var(--neon);
+            padding: 8px 15px; cursor: pointer; font-family: inherit; font-weight: bold; transition: 0.3s;
+        }
+        #fullscreen-btn:hover { background: var(--neon); color: #000; box-shadow: 0 0 10px var(--neon); }
+
+        /* Visuals */
+        #viewport { flex-grow: 1; position: relative; background: #000; overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        #hud { 
+            position: absolute; top: 25px; right: 25px; background: rgba(0, 10, 0, 0.8); 
+            border: 1px solid var(--neon-dim); padding: 20px; z-index: 10; pointer-events: none; min-width: 280px;
+        }
+        .hud-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9em; }
+        .hud-label { color: var(--text); }
+        .hud-val { color: var(--neon); font-weight: bold; }
+        .hud-val.alert { color: var(--danger); text-shadow: 0 0 8px var(--danger); animation: blink 1s infinite alternate;}
+        .hud-val.weather { color: #55ffff; }
+        
+        /* Gamification Overlays */
+        .hud-stage { border-bottom: 1px solid var(--neon-dim); padding-bottom: 10px; margin-bottom: 10px; text-align: center; }
+        .hud-stage-title { color: gold; font-weight: bold; font-size: 1.1em; letter-spacing: 2px; text-shadow: 0 0 5px rgba(255,215,0,0.5); }
+        .hud-stage-target { color: #aaa; font-size: 0.8em; margin-top: 5px; }
+
+        /* SCHEMATICS WINDOW */
+        #schematic-window {
+            position: absolute; top: 25px; left: 25px; width: 280px;
+            background: rgba(5, 10, 5, 0.85); border: 1px solid var(--danger);
+            box-shadow: 0 0 20px rgba(255, 51, 51, 0.15); z-index: 15;
+            display: none; flex-direction: column;
+            pointer-events: none; backdrop-filter: blur(5px);
+        }
+        .schematic-header {
+            background: rgba(255, 51, 51, 0.2); border-bottom: 1px solid var(--danger);
+            padding: 8px; font-size: 0.8em; font-weight: bold; text-align: center;
+            letter-spacing: 2px; color: var(--danger);
+        }
+        .schematic-body { padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        .schematic-svg { width: 100%; height: 140px; margin-bottom: 15px; }
+        .schematic-data { width: 100%; font-size: 0.8em; line-height: 1.6; }
+        .schematic-data span { color: #fff; float: right; font-weight: bold;}
+
+        /* NEWS TICKER */
+        #news-ticker {
+            position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0, 0, 0, 0.9);
+            border-top: 2px solid var(--danger); z-index: 50; display: flex; align-items: center;
+            overflow: hidden; height: 40px; font-family: 'Share Tech Mono', monospace;
+        }
+        .news-label {
+            background: var(--danger); color: #fff; padding: 0 15px; height: 100%;
+            display: flex; align-items: center; font-weight: bold; letter-spacing: 1px; z-index: 2;
+        }
+        .news-content {
+            white-space: nowrap; color: #fff; padding-left: 20px; font-size: 1.1em;
+            animation: ticker 25s linear infinite; z-index: 1;
+        }
+        .news-source { color: #888; font-size: 0.8em; margin-right: 10px; }
+
+        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        @keyframes blink { 0% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        .scanline { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, transparent 50%, rgba(0,255,85,0.03) 50%); background-size: 100% 4px; pointer-events: none; z-index: 20; }
+        .vignette { position: absolute; top: 0; left: 0; width: 100%; height: 100%; box-shadow: inset 0 0 150px rgba(0,0,0,0.9); pointer-events: none; z-index: 19; }
+
+        /* GUIDED DRILL OVERLAYS */
+        .drill-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(3px); z-index: 1500; 
+            display: none; justify-content: center; align-items: center;
+        }
+        
+        /* TERMINAL STYLES */
+        .terminal-box { display: flex; flex-direction: column; box-shadow: 0 0 50px rgba(0,255,85,0.2); }
+        .terminal-header { padding: 10px; font-weight: bold; font-size: 1.1em; letter-spacing: 2px; display: flex; justify-content: space-between; align-items: center;}
+        .terminal-log { flex-grow: 1; padding: 20px; overflow-y: auto; font-size: 1.1em; line-height: 1.6; }
+        .cmd-line { display: flex; align-items: center; padding: 15px 20px; font-size: 1.1em; font-family: 'Share Tech Mono', monospace; }
+        .cmd-prompt { margin-right: 10px; font-weight: bold; white-space: nowrap; }
+        .cmd-input { background: transparent; border: none; font-family: inherit; font-size: 1em; flex-grow: 1; outline: none; text-transform: uppercase; }
+        .terminal-helpers { color: #555; padding: 0 20px 10px 20px; font-size: 0.85em; font-style: italic; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;}
+        
+        /* OPFOR STRIKE TERMINAL */
+        #opfor-terminal { background: #110000; border: 2px solid var(--danger); width: 850px; height: 600px; box-shadow: 0 0 50px rgba(255,51,51,0.2); }
+        #opfor-header { background: var(--danger); color: #000; }
+        #opfor-log { color: var(--danger); text-shadow: 0 0 3px var(--danger); font-size: 0.95em; }
+        #opfor-controls { border-top: 1px dashed rgba(255,51,51,0.3); background: rgba(255,51,51,0.05); }
+        #opfor-controls .cmd-prompt { color: var(--danger); }
+        #opfor-input { color: #fff; text-shadow: 0 0 5px #fff; }
+
+        /* C2 DEFENSE TERMINAL */
+        #c2-terminal { background: #000; border: 2px solid var(--neon); width: 900px; height: 650px; }
+        #c2-header { background: var(--neon); color: #000; }
+        #c2-log { color: var(--neon); text-shadow: 0 0 3px var(--neon); font-size: 0.95em; }
+        #c2-controls { border-top: 1px dashed var(--neon-dim); background: rgba(0,255,85,0.05); }
+        #c2-controls .cmd-prompt { color: var(--neon); }
+        #c2-input { color: #fff; text-shadow: 0 0 5px #fff; }
+
+        #init-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000;
+            display: flex; justify-content: center; align-items: center; flex-direction: column; cursor: pointer;
+        }
+        #init-overlay h1 { color: var(--neon); text-shadow: 0 0 20px var(--neon); letter-spacing: 5px; text-align: center;}
+        #init-overlay p { color: var(--text); animation: pulse 1.5s infinite; }
+
+        /* AI PDF CHATBOT WIDGET */
+        #ai-bot-wrapper {
+            position: absolute; bottom: 50px; right: 25px; z-index: 100;
+            display: flex; flex-direction: column; align-items: flex-end;
+        }
+        #ai-bot-toggle {
+            background: rgba(0,0,0,0.8); color: #00ffff; border: 1px solid #00ffff;
+            padding: 10px 15px; cursor: pointer; font-family: inherit; font-weight: bold;
+            box-shadow: 0 0 15px rgba(0,255,255,0.2); transition: 0.3s; letter-spacing: 1px;
+        }
+        #ai-bot-toggle:hover { background: #00ffff; color: #000; box-shadow: 0 0 20px #00ffff; }
+        
+        #ai-bot-window {
+            background: rgba(5, 10, 15, 0.95); border: 1px solid #00ffff;
+            width: 350px; height: 450px; margin-bottom: 10px; display: none;
+            flex-direction: column; box-shadow: 0 0 30px rgba(0,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+        #ai-bot-header {
+            background: rgba(0,255,255,0.2); color: #00ffff; padding: 10px;
+            font-weight: bold; border-bottom: 1px solid #00ffff;
+            letter-spacing: 1px; font-size: 0.9em; display: flex; justify-content: space-between; align-items: center;
+        }
+        #ai-bot-messages {
+            flex-grow: 1; padding: 15px; overflow-y: auto; font-size: 0.85em;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .bot-msg { background: rgba(0,255,255,0.1); border-left: 2px solid #00ffff; padding: 8px; color: #fff; }
+        .user-msg { background: rgba(255,255,255,0.1); border-right: 2px solid #ccc; padding: 8px; color: #ccc; align-self: flex-end; text-align: right; max-width: 85%; }
+        #ai-bot-input-area {
+            display: flex; border-top: 1px solid #00ffff;
+        }
+        #ai-bot-input {
+            flex-grow: 1; background: transparent; border: none; color: #fff;
+            padding: 10px; font-family: inherit; outline: none;
+        }
+        #ai-bot-send {
+            background: #00ffff; color: #000; border: none; padding: 0 15px;
+            font-weight: bold; cursor: pointer; font-family: inherit;
+        }
+
+        /* PRINT CSS FOR PDF GENERATION */
+        @media print {
+            body:not(.print-news):not(.print-research) * { visibility: hidden; }
+            body:not(.print-news):not(.print-research) #opfor-terminal, body:not(.print-news):not(.print-research) #opfor-terminal * { visibility: visible; }
+            body:not(.print-news):not(.print-research) #opfor-terminal { 
+                position: absolute; left: 0; top: 0; width: 100%; height: auto; 
+                background: #fff !important; color: #000 !important; 
+                text-shadow: none !important; border: none !important; box-shadow: none !important; 
+            }
+            body:not(.print-news):not(.print-research) #opfor-header { background: #ccc !important; color: #000 !important; border-bottom: 2px solid #000; }
+            body:not(.print-news):not(.print-research) .cmd-input, body:not(.print-news):not(.print-research) #view-tabs, body:not(.print-news):not(.print-research) .controls, body:not(.print-news):not(.print-research) #sidebar, body:not(.print-news):not(.print-research) #simCanvas, body:not(.print-news):not(.print-research) .terminal-helpers, body:not(.print-news):not(.print-research) #opfor-controls, body:not(.print-news):not(.print-research) .pdf-btn, body:not(.print-news):not(.print-research) .cancel-btn, body:not(.print-news):not(.print-research) #news-ticker, body:not(.print-news):not(.print-research) #fullscreen-btn, body:not(.print-news):not(.print-research) #schematic-window, body:not(.print-news):not(.print-research) #ai-bot-wrapper { display: none !important; }
+            body:not(.print-news):not(.print-research) #opfor-log span { color: #000 !important; }
+
+            /* News Print Styles */
+            body.print-news * { visibility: hidden; }
+            body.print-news #news-print-container, body.print-news #news-print-container * { visibility: visible; }
+            body.print-news #news-print-container {
+                position: absolute; left: 0; top: 0; width: 100%; height: auto;
+                background: #fff !important; color: #000 !important; font-family: monospace; display: block !important; padding: 20px;
+            }
+
+            /* Research Print Styles */
+            body.print-research * { visibility: hidden; }
+            body.print-research #research-print-container, body.print-research #research-print-container * { visibility: visible; }
+            body.print-research #research-print-container {
+                position: absolute; left: 0; top: 0; width: 100%; height: auto;
+                background: #fff !important; color: #000 !important; display: block !important; padding: 20px;
+            }
+        }
+
+        /* CINEMATIC SUBTITLES */
+.subtitle-overlay {
+    position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+    background: rgba(5, 15, 10, 0.85); border-left: 3px solid var(--neon);
+    border-right: 3px solid var(--neon);
+    padding: 12px 25px; z-index: 2500; text-align: center;
+    box-shadow: 0 0 20px rgba(0,255,85,0.1); backdrop-filter: blur(5px);
+    opacity: 0; transition: opacity 0.3s ease-in-out, transform 0.3s ease-out;
+    pointer-events: none; display: flex; flex-direction: column; gap: 5px;
+}
+.subtitle-overlay.active {
+    opacity: 1; transform: translateX(-50%) translateY(-10px);
+}
+.sub-native { color: #888; font-size: 0.85em; font-style: italic; letter-spacing: 1px;}
+.sub-english { color: #fff; font-size: 1.2em; font-weight: bold; text-shadow: 0 0 8px rgba(255,255,255,0.5); letter-spacing: 1px;}
+.sub-speaker { color: var(--neon); font-size: 0.75em; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 2px; }
+
+/* BACKGROUND LATEX OVERLAY */
+#math-overlay {
+    position: absolute;
+    top: 50%;
+    left: 45%; /* Slightly offset to account for the sidebar */
+    transform: translate(-50%, -50%);
+    z-index: 5; /* Behind the HUD, but above the canvas */
+    font-size: 5em;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease-out;
+    mix-blend-mode: screen;
+}
+
+.math-pulse {
+    animation: equation-flash 2.5s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes equation-flash {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    10% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); filter: brightness(1.5); }
+    20% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+    80% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.95); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); filter: blur(10px); }
+}
+    </style>
+</head>
+<body>
+
+<div id="init-overlay">
+    <h1>מערכת הגנה אווירית רב-שכבתית<br>MULTI-TIER AIR DEFENSE NETWORK</h1>
+    <p>[ CLICK TO INITIALIZE SENSORS & AUDIO | לחץ להפעלה ]</p>
+</div>
+
+<button id="fullscreen-btn" onclick="toggleFullscreen()">[ FULLSCREEN ]</button>
+
+<div id="news-print-container" style="display:none;"></div>
+<div id="research-print-container" style="display:none;"></div>
+
+<!-- AI RESEARCH CHATBOT WIDGET -->
+<div id="ai-bot-wrapper">
+    <div id="ai-bot-window">
+        <div id="ai-bot-header">
+            <span>SMAD RESEARCH AI</span>
+            <button id="ai-bot-export-btn" onclick="exportResearchPDF()" style="background:#fff; color:#000; border:none; padding:2px 8px; cursor:pointer; font-weight:bold; font-size:0.8em; font-family:inherit;">[ PDF ]</button>
+        </div>
+        <div id="ai-bot-messages">
+            <div class="bot-msg">Welcome, Commander. I am loaded with the latest DoD/SMAD research documentation (TIA-2024-IR-ISR & AI Optimization). Ask me about Kinematic Overmatch, Neural Networks, WTA, or Monte Carlo estimations.</div>
+        </div>
+        <div id="ai-bot-input-area">
+            <input type="text" id="ai-bot-input" placeholder="Query research data..." autocomplete="off">
+            <button id="ai-bot-send" onclick="handleChatSubmit()">SEND</button>
+        </div>
+    </div>
+    <button id="ai-bot-toggle" onclick="toggleChatbot()">[ RESEARCH AI ]</button>
+</div>
+
+<!-- STRIKE PLANNER TERMINAL -->
+<div id="drill-offense" class="drill-overlay">
+    <div id="opfor-terminal" class="terminal-box">
+        <div id="opfor-header" class="terminal-header">
+            <span>فرماندهی حمله // OPFOR STRIKE COMMAND</span>
+        </div>
+        <div id="opfor-log" class="terminal-log"></div>
+        <div class="terminal-helpers" style="color:#aa5555; padding: 0 20px;">[SYS] TYPE 'HELP' TO DISPLAY VALID COMMANDS. TRY: `MONTE CARLO 20`</div>
+        <div id="opfor-controls" class="cmd-line">
+            <span class="cmd-prompt">strike-cmd@opfor [فرماندهی]:~$</span>
+            <input type="text" id="opfor-input" class="cmd-input" autocomplete="off" spellcheck="false" autofocus placeholder="Awaiting command input...">
+            <button class="cancel-btn" onclick="cancelDrill()">[ ESC / CANCEL ]</button>
+        </div>
+    </div>
+</div>
+
+<!-- C2 DEFENSE TERMINAL -->
+<div id="drill-defense" class="drill-overlay">
+    <div id="c2-terminal" class="terminal-box">
+        <div id="c2-header" class="terminal-header">
+            <span>מנהלת יירוט // AEGIS COMMAND DIR. TACTICAL INTERCEPT CONSOLE</span>
+        </div>
+        <div id="c2-log" class="terminal-log"></div>
+        <div class="terminal-helpers" style="color:#55aa55; padding: 0 20px;">[SYS] TYPE 'HELP' TO DISPLAY VALID COMMANDS. TRY: `MONTE CARLO 5`</div>
+        <div id="c2-controls" class="cmd-line">
+            <span class="cmd-prompt">aegis@c2-node [מערכת]:~$</span>
+            <input type="text" id="c2-input" class="cmd-input" autocomplete="off" spellcheck="false" autofocus placeholder="Type 'HELP' for command directory...">
+            <button class="cancel-btn" onclick="cancelDrill()">[ ESC / CANCEL ]</button>
+        </div>
+    </div>
+</div>
+
+<div id="sidebar">
+    <div class="header">ISRAELI AD NETWORK DIR.<br><span style="font-size:0.6em; color:var(--text);">מנהלת הגנה אווירית</span></div>
+    <div id="view-tabs">
+        <div class="tab active" id="tab-TACTICAL" onclick="setView('TACTICAL')">TACTICAL</div>
+        <div class="tab" id="tab-STRATEGIC" onclick="setView('STRATEGIC')">STRATEGIC MAP</div>
+        <div class="tab" id="tab-SYSTEMS" onclick="setView('SYSTEMS')">AD SYSTEMS</div>
+    </div>
+    <div class="content">
+        
+        <div class="theory-card arrow">
+            <h4><span>Tier 1: Arrow 3 (חץ 3)</span> <span style="color:var(--arrow)">EXO</span></h4>
+            <p>Exo-atmospheric Hit-to-Kill (HTK) vehicle. Uses Zero-Effort Miss (ZEM) guidance to predict ballistic trajectories.</p>
+            <div class="math-box arrow">ZEM = r_tg + v_tg · t_go</div>
+        </div>
+
+        <div class="theory-card stunner">
+            <h4><span>Tier 2: David's Sling (קלע דוד)</span> <span style="color:var(--stunner)">ENDO</span></h4>
+            <p>Stunner asymmetric interceptor. Defeats terminal maneuvers (MaRV) via APN.</p>
+            <div class="math-box">a_c = N'·V_c·dλ/dt + (N'/2)·a_T</div>
+        </div>
+
+        <div class="theory-card tamir">
+            <h4><span>Tier 3: Iron Dome (כיפת ברזל)</span> <span style="color:var(--tamir)">C-RAM</span></h4>
+            <p>Tamir interceptor. Highly agile, utilizes standard Proportional Navigation (PN).</p>
+            <div class="math-box tamir">a_c = N' · V_c · dλ/dt</div>
+        </div>
+
+        <div class="theory-card" style="border-left-color: #00ffff">
+            <h4><span>AI Kill Assessment</span> <span style="color:#00ffff">CNN</span></h4>
+            <p>Neural networks reduce OODA Look-phase latency ($\tau_{ka}$) by rapidly classifying micro-Doppler signatures via Softmax probabilities.</p>
+            <div class="math-box" style="color:#00ffff; border-color:rgba(0,255,255,0.4);">σ(z)_i = e^{z_i} / Σ e^{z_j}</div>
+        </div>
+
+        <div class="theory-card" style="border-left-color: #ff00ff">
+            <h4><span>WTA Optimization</span> <span style="color:#ff00ff">RL</span></h4>
+            <p>Reinforcement Learning solves the Combinatorial Weapon-Target Assignment problem to mathematically maximize global survival probabilities.</p>
+            <div class="math-box" style="color:#ff00ff; border-color:rgba(255,0,255,0.4);">min Σ [ ∏ (1 - P_ij)^{x_ij} ] V_j</div>
+        </div>
+
+        <div class="theory-card" style="border-left-color: #ffaa00">
+            <h4><span>Kinematic Overmatch</span> <span style="color:#ffaa00">PE GEO</span></h4>
+            <p>Hit-to-Kill fails if terminal lateral acceleration ($n_L$) outpaces guidance time constant ($\tau$). Requires 3:1 maneuver ratio.</p>
+            <div class="math-box" style="color:#ffaa00; border-color:rgba(255,170,0,0.4);">M_d = ½ n_L t_{go}² [1 - (τ/t_{go})(1 - e^{-t_{go}/τ})]</div>
+        </div>
+
+        <div class="theory-card" style="border-left-color: #ff5555">
+            <h4><span>Saturation Attrition</span> <span style="color:#ff5555">CER</span></h4>
+            <p>Salvo leakage probability under saturation forces rapid Cost-Exchange Ratio (CER) depletion and magazine exhaustion.</p>
+            <div class="math-box" style="color:#ff5555; border-color:rgba(255,85,85,0.4);">P_{Leak} = 1 - [1 - (1-p)^n]^m</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="toggleOptics()" id="btn-optics" style="border-color:#55ffff; color:#55ffff; margin-bottom:15px; font-weight:bold;">[ OPTICS: REALISTIC NIGHT SKY ]</button>
+        
+        <div class="controls-title">Gamification & Tactical Abilities</div>
+        <button class="btn btn-ability" style="color:var(--chrono); border-color:var(--chrono);" onclick="activateChronoShift()">[ ACTIVATE CHRONO-SHIFT ]</button>
+        <button class="btn btn-ability" style="color:var(--ew); border-color:var(--ew);" onclick="activateEWJamming()">[ ACTIVATE EW JAMMING ]</button>
+        <button class="btn btn-ability" style="color:gold; border-color:gold;" onclick="advanceStage()">[ ADVANCE CAMPAIGN STAGE ]</button>
+        
+        <div class="controls-title" style="margin-top: 15px;">Inject Threat Profile</div>
+        <button class="btn" onclick="launchThreat('FATTAH')">LAUNCH FATTAH-1 (فتاح-۱)</button>
+        <button class="btn" onclick="launchThreat('KHEIBAR')">LAUNCH KHEIBAR (خیبر שכן)</button>
+        <button class="btn" onclick="launchThreat('EMAD')">LAUNCH EMAD (عماد)</button>
+        <button class="btn" onclick="launchThreat('SHAHED')" style="color: #cccc33; border-color: #cccc33;">LAUNCH SHAHED-136 (شاهد ۱۳۶)</button>
+        <button class="btn btn-salvo" onclick="launchSalvo()">INITIATE SATURATION ATTACK</button>
+        <button class="btn btn-drill" onclick="openDrillPlanner()">[ SIMULATOR ] START GUIDED DRILL</button>
+    </div>
+</div>
+
+<div id="viewport">
+    <div id="subtitle-box" class="subtitle-overlay"></div>
+    <div id="math-overlay"></div>
+    <canvas id="simCanvas"></canvas>
+    <div class="vignette"></div>
+    <div class="scanline"></div>
+    
+    <div id="schematic-window">
+        <div class="schematic-header">TARGET TELEMETRY // SCHEMATICS</div>
+        <div id="schematic-content"></div>
+    </div>
+
+    <div id="hud">
+        <div class="hud-stage">
+            <div class="hud-stage-title" id="hud-stage-name">DEFCON 4: SKIRMISH</div>
+            <div class="hud-stage-target" id="hud-stage-target">TARGET: Intercept basic threats. Survive the probe.</div>
+        </div>
+        <div class="hud-row"><span class="hud-label" style="color:var(--neon)">AEGIS SCORE:</span> <span class="hud-val" id="score-aegis" style="color:var(--neon)">0</span></div>
+        <div class="hud-row"><span class="hud-label" style="color:var(--danger)">OPFOR SCORE:</span> <span class="hud-val" id="score-opfor" style="color:var(--danger)">0</span></div>
+        <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
+
+        <div class="hud-row"><span class="hud-label">RADAR LINK:</span> <span class="hud-val" id="radar-status">ACTIVE</span></div>
+        <div class="hud-row"><span class="hud-label">CROSSWIND:</span> <span class="hud-val weather" id="hud-wind">0.0 m/s</span></div>
+        <div class="hud-row"><span class="hud-label">ACTIVE THREATS:</span> <span class="hud-val" id="threat-count">0</span></div>
+        <div class="hud-row"><span class="hud-label">IN FLIGHT (ARROW):</span> <span class="hud-val" id="arr-count" style="color:var(--arrow)">0</span></div>
+        <div class="hud-row"><span class="hud-label">IN FLIGHT (STUNNER):</span> <span class="hud-val" id="stu-count" style="color:var(--stunner)">0</span></div>
+        <div class="hud-row"><span class="hud-label">IN FLIGHT (TAMIR):</span> <span class="hud-val" id="tam-count" style="color:var(--tamir)">0</span></div>
+        <div class="hud-row"><span class="hud-label">BREACHES (IMPACTS):</span> <span class="hud-val alert" id="leak-count">0</span></div>
+    </div>
+    
+    <div id="news-ticker">
+        <div class="news-label">BREAKING NEWS</div>
+        <div class="news-content" id="news-text">
+            <span class="news-source">[GLOBAL TIMES]</span> TENSIONS ESCALATE AS DEFENSE READINESS RAISED TO MAXIMUM. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <span class="news-source">[DEFENSE DAILY]</span> PENTAGON MONITORS SPACE-BASED INFRARED SYSTEMS FOR MISSILE LAUNCHES.
+        </div>
+    </div>
+</div>
+
+<script>
+let performanceMode = false;
+
+// Optimization: Check FPS and degrade quality if needed
+let lastFrameTime = performance.now();
+let frameCount = 0;
+
+function checkPerformance() {
+    let now = performance.now();
+    frameCount++;
+    if (now - lastFrameTime >= 1000) {
+        let fps = frameCount;
+        if (fps < 40) {
+            performanceMode = true; 
+            matrixLog("[SYSTEM] PERFORMANCE DEGRADATION DETECTED. DISABLING BLOOM/GLOW.");
+        }
+        frameCount = 0;
+        lastFrameTime = now;
+    }
+}
+// ==========================================
+// 1. GLOBAL STATE & CONFIGURATIONS
+// ==========================================
+
+const weather = {
+    windSpeed: (Math.random() * 20 - 10).toFixed(1), 
+    airDensity: 1.225 
+};
+
+const BATTERIES = {
+    ARROW: { x: 0, y: 0, color: "170, 170, 255", name: "ARROW-3" }, 
+    STUNNER: { x: 0, y: 0, color: "85, 255, 85", name: "STUNNER" },
+    TAMIR: { x: 0, y: 0, color: "255, 255, 85", name: "TAMIR" }
+};
+
+const AD_DATA = {
+    ARROW: { color: "170, 170, 255", speed: 14.0, turnRate: 0.06, guidance: "ZEM", pColor: "#aaaaff", mach: 9.0, pk: 0.85, cooldown: 90 }, 
+    STUNNER: { color: "85, 255, 85", speed: 11.0, turnRate: 0.18, guidance: "APN", pColor: "#55ff55", mach: 7.5, pk: 0.80, cooldown: 36 }, 
+    TAMIR: { color: "255, 255, 85", speed: 8.0, turnRate: 0.14, guidance: "PN", pColor: "#ffff55", mach: 2.2, pk: 0.95, cooldown: 18 }   
+};
+
+const THREAT_DATA = {
+    FATTAH: { color: "255, 0, 255", speed: 5.5, size: 1.2, isDecoy: false, isDrone: false, mach: 15.0 },
+    KHEIBAR: { color: "255, 50, 50", speed: 4.8, size: 1.0, isDecoy: false, isDrone: false, mach: 10.0 },
+    EMAD: { color: "255, 150, 0", speed: 4.5, size: 1.4, isDecoy: false, isDrone: false, mach: 7.0 },
+    DECOY: { color: "255, 100, 0", speed: 4.5, size: 0.6, isDecoy: true, isDrone: false, mach: 7.0 },
+    SHAHED: { color: "200, 200, 50", speed: 1.2, size: 0.8, isDecoy: false, isDrone: true, mach: 0.15 }
+};
+
+const CAMPAIGN_STAGES = [
+    { level: 1, name: "DEFCON 4: SKIRMISH", target: "Intercept basic threats. Survive the probe.", ptsToAdvance: 500, wave: ['SHAHED', 'SHAHED', 'EMAD'] },
+    { level: 2, name: "DEFCON 3: SWARM TACTICS", target: "Manage inventory against saturation. Don't leak.", ptsToAdvance: 1500, wave: ['SHAHED', 'SHAHED', 'SHAHED', 'SHAHED', 'EMAD', 'EMAD'] },
+    { level: 3, name: "DEFCON 2: HYPERSONIC", target: "Counter Kinematic Overmatch. Fast reaction required.", ptsToAdvance: 3000, wave: ['KHEIBAR', 'KHEIBAR', 'FATTAH'] },
+    { level: 4, name: "DEFCON 1: TOTAL WAR", target: "Survive the ultimate multi-vector saturation.", ptsToAdvance: 5000, wave: ['FATTAH', 'FATTAH', 'KHEIBAR', 'KHEIBAR', 'EMAD', 'EMAD', 'SHAHED', 'SHAHED'] }
+];
+
+const COSTS = { ARROW: 3000000, STUNNER: 1000000, TAMIR: 50000 };
+
+let attackActive = false;
+let battleStats = { threatsLaunched: 0, decoysSpawned: 0, interceptors: { ARROW: 0, STUNNER: 0, TAMIR: 0 }, kills: { ARROW: 0, STUNNER: 0, TAMIR: 0 }, leaks: 0 };
+let lastBattleStats = null; 
+let lastDrillPayloadType = null; 
+
+let inventory = { ARROW: 30, STUNNER: 60, TAMIR: 150 }; 
+let maxInventory = { ARROW: 30, STUNNER: 60, TAMIR: 150 }; 
+let fireCooldowns = { ARROW: 0, STUNNER: 0, TAMIR: 0 };
+let deepReloadTimers = { ARROW: 0, STUNNER: 0, TAMIR: 0 };
+
+let isPaused = false; 
+let renderTime = 0;   
+let simTime = 0;      
+let bgLog = []; 
+let ambientDebris = [];
+let opticsMode = 'REAL';
+
+let width = 800, height = 600; 
+let threats = []; 
+let interceptors = []; 
+let particles = []; 
+let shockwaves = [];
+let screenShake = 0;
+
+let drillState = 'IDLE';
+let opforState = 'IDLE';
+let drillTypeWriterActive = false;
+let opforTypeWriterActive = false;
+let drillPayload = { type: null, qty: 1 };
+let activeDrillTarget = null;
+let selectedDrillWeapon = null;
+
+let aegisScore = 0;
+let opforScore = 0;
+let chronoShiftActive = 0; 
+let ewJammingActive = 0; 
+let currentStageIdx = 0;
+let currentView = 'TACTICAL'; // <-- Add this line
+
+function flashEquation(latexEq, colorCode) {
+    const overlay = document.getElementById('math-overlay');
+    if (!overlay || typeof katex === 'undefined') return;
+
+    // Apply specific system colors and glowing text shadow
+    overlay.style.color = colorCode;
+    overlay.style.textShadow = `0 0 30px ${colorCode}, 0 0 10px #fff`;
+
+    // Render the LaTeX string directly into the DOM
+    try {
+        katex.render(latexEq, overlay, { displayMode: true, throwOnError: false });
+    } catch (e) { console.error("LaTeX compilation error:", e); }
+
+    // Retrigger the CSS animation
+    overlay.classList.remove('math-pulse');
+    void overlay.offsetWidth; // Force DOM reflow to restart animation
+    overlay.classList.add('math-pulse');
+}
+
+/** * ADVANCED PROCEDURAL AUDIO ENGINE */
+class SynthAudio {
+    constructor() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.5;
+        this.masterGain.connect(this.ctx.destination);
+        
+        const bufferSize = this.ctx.sampleRate * 2.0; 
+        this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const output = this.noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            output[i] = (Math.random() * 2 - 1) * 0.5 + (i > 0 ? output[i-1] * 0.5 : 0);
+        }
+        this.lastKSTime = 0;
+        this.bgmStarted = false;
+    }
+
+    resume() { if(this.ctx.state === 'suspended') this.ctx.resume(); }
+
+    playUIClick() {
+        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+        osc.type = 'sine'; osc.frequency.setValueAtTime(800, this.ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+        osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+    }
+
+    playKeystroke() {
+        if(this.ctx.currentTime - this.lastKSTime < 0.04) return;
+        this.lastKSTime = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(1200 + Math.random()*200, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.02, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+        osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + 0.04);
+    }
+
+    playAlarm() {
+        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+        osc.type = 'square'; osc.frequency.setValueAtTime(300, this.ctx.currentTime); osc.frequency.setValueAtTime(450, this.ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.6);
+        osc.connect(gain); gain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + 0.6);
+    }
+
+    playRedAlert() {
+        const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        let t = this.ctx.currentTime;
+        osc.frequency.setValueAtTime(400, t);
+        osc.frequency.linearRampToValueAtTime(1000, t + 1.5);
+        osc.frequency.linearRampToValueAtTime(400, t + 3.0);
+        
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.3, t + 0.5);
+        gain.gain.setValueAtTime(0.3, t + 2.5);
+        gain.gain.linearRampToValueAtTime(0, t + 3.0);
+        
+        osc.connect(gain); gain.connect(this.masterGain);
+        osc.start(t); osc.stop(t + 3.0);
+        
+        speakTTS("צבע אדום, צבע אדום. זיהוי פגיעה. היכנסו למרחב מוגן.", "he-IL", "Red Alert. Red Alert. Impact detected. Seek immediate shelter.", "HOME FRONT CMD");
+    }
+
+    playLaunch(pitchMultiplier = 1.0) {
+        const source = this.ctx.createBufferSource(); source.buffer = this.noiseBuffer;
+        const filter = this.ctx.createBiquadFilter(); filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(200 * pitchMultiplier, this.ctx.currentTime); filter.frequency.exponentialRampToValueAtTime(800 * pitchMultiplier, this.ctx.currentTime + 1.0); filter.Q.value = 1.5;
+        const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0, this.ctx.currentTime); gain.gain.linearRampToValueAtTime(0.4, this.ctx.currentTime + 0.1); gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 1.5);
+        source.connect(filter); filter.connect(gain); gain.connect(this.masterGain); source.start(); source.stop(this.ctx.currentTime + 1.5);
+    }
+
+    playExplosion(isExo = false, isMassive = false) {
+        if (!isExo) {
+            const osc = this.ctx.createOscillator(); const subGain = this.ctx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(isMassive ? 30 : 100, this.ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(isMassive ? 10 : 20, this.ctx.currentTime + (isMassive ? 2.5 : 0.8));
+            subGain.gain.setValueAtTime(isMassive ? 2.0 : 1.0, this.ctx.currentTime); subGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + (isMassive ? 3.0 : 1.2));
+            osc.connect(subGain); subGain.connect(this.masterGain); osc.start(); osc.stop(this.ctx.currentTime + (isMassive ? 3.0 : 1.2));
+        }
+        const source = this.ctx.createBufferSource(); source.buffer = this.noiseBuffer;
+        const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(isExo ? 1000 : (isMassive ? 2000 : 3000), this.ctx.currentTime); filter.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + (isMassive ? 2.0 : 1.0));
+        const noiseGain = this.ctx.createGain(); noiseGain.gain.setValueAtTime(isExo ? 0.4 : (isMassive ? 1.5 : 0.8), this.ctx.currentTime); noiseGain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + (isMassive ? 2.5 : 1.0));
+        source.connect(filter); filter.connect(noiseGain); noiseGain.connect(this.masterGain); source.start(); source.stop(this.ctx.currentTime + (isMassive ? 2.5 : 1.0));
+    }
+
+    startBGM() {
+        if(this.bgmStarted) return;
+        this.bgmStarted = true;
+        
+        const playSnare = (time) => {
+            const osc = this.ctx.createBufferSource(); osc.buffer = this.noiseBuffer;
+            const filter = this.ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = 1200;
+            const gain = this.ctx.createGain(); gain.gain.setValueAtTime(0.08, time); gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+            osc.connect(filter); filter.connect(gain); gain.connect(this.masterGain); osc.start(time); osc.stop(time + 0.1);
+        };
+        
+        let nextNoteTime = this.ctx.currentTime + 0.1;
+        let step = 0;
+        setInterval(() => {
+            while (nextNoteTime < this.ctx.currentTime + 0.1) {
+                if ([0, 2, 4, 5, 7].includes(step % 8)) playSnare(nextNoteTime);
+                nextNoteTime += 0.25; step++;
+            }
+        }, 50);
+
+        this.droneOsc = this.ctx.createOscillator();
+        this.droneGain = this.ctx.createGain();
+        this.droneOsc.type = 'sawtooth';
+        this.droneGain.gain.value = 0.02;
+        this.droneOsc.frequency.value = 55; 
+        const filter = this.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 300;
+        
+        setInterval(() => {
+            if(this.ctx.state === 'running') {
+                let f = this.droneOsc.frequency.value === 55 ? 58.27 : 55; 
+                this.droneOsc.frequency.setTargetAtTime(f, this.ctx.currentTime, 0.5);
+            }
+        }, 8000);
+
+        this.droneOsc.connect(filter); filter.connect(this.droneGain); this.droneGain.connect(this.masterGain);
+        this.droneOsc.start();
+    }
+}
+
+let audio = null;
+let lastSpokenTime = {}; 
+
+const Vector = {
+    sub: (v1, v2) => ({ x: v1.x - v2.x, y: v1.y - v2.y }),
+    mag: (v) => Math.sqrt(v.x*v.x + v.y*v.y),
+    dist: (v1, v2) => Vector.mag(Vector.sub(v1, v2))
+};
+
+// ==========================================
+// 2. DOM & CANVAS INITIALIZATION
+// ==========================================
+
+const canvas = document.getElementById('simCanvas'); 
+const ctx = canvas.getContext('2d', { alpha: false });
+
+for(let i=0; i<150; i++) {
+    ambientDebris.push({ x: Math.random() * 2000, y: Math.random() * 2000, s: Math.random() * 1.5, a: Math.random(), va: (Math.random() - 0.5) * 0.05 });
+}
+
+// ==========================================
+// 3. CORE UTILITIES & LOGIC
+// ==========================================
+
+function resize() {
+    let windowWidth = window.innerWidth || 800;
+    let windowHeight = window.innerHeight || 600;
+    
+    width = windowWidth > 480 ? windowWidth - 480 : 800; 
+    height = windowHeight; 
+    
+    canvas.width = width; 
+    canvas.height = height;
+    
+    BATTERIES.ARROW.x = width * 0.25; BATTERIES.ARROW.y = height - 15;
+    BATTERIES.STUNNER.x = width * 0.5; BATTERIES.STUNNER.y = height - 15;
+    BATTERIES.TAMIR.x = width * 0.75; BATTERIES.TAMIR.y = height - 15;
+    
+    const windEl = document.getElementById('hud-wind');
+    if(windEl) windEl.innerText = `${weather.windSpeed > 0 ? '+' : ''}${weather.windSpeed} m/s`;
+}
+window.addEventListener('resize', resize); 
+resize();
+
+// function speakTTS(text, lang) {
+//     if ('speechSynthesis' in window) {
+//         let now = Date.now();
+//         if (lastSpokenTime[text] && now - lastSpokenTime[text] < 3000) return; 
+//         lastSpokenTime[text] = now;
+
+//         window.speechSynthesis.cancel();
+//         let msg = new SpeechSynthesisUtterance(text);
+//         msg.lang = lang;
+//         msg.rate = 1.1; msg.volume = 0.8;
+//         window.speechSynthesis.speak(msg);
+//     }
+// }
+
+let subtitleTimeout;
+
+function speakTTS(text, lang, englishTranslation = "", speaker = "SYS") {
+    if ('speechSynthesis' in window) {
+        let now = Date.now();
+        // Prevent spamming the same voice line
+        if (lastSpokenTime[text] && now - lastSpokenTime[text] < 4000) return; 
+        lastSpokenTime[text] = now;
+
+        window.speechSynthesis.cancel();
+        let msg = new SpeechSynthesisUtterance(text);
+        msg.lang = lang;
+        msg.rate = 1.0; // Slightly slower for dramatic effect
+        msg.volume = 0.9;
+
+        const subBox = document.getElementById('subtitle-box');
+        
+        msg.onstart = () => {
+            if (subBox) {
+                let translationHtml = englishTranslation ? `<div class="sub-english">"${englishTranslation}"</div>` : `<div class="sub-english">"${text}"</div>`;
+                let nativeHtml = (lang !== 'en-US' && englishTranslation) ? `<div class="sub-native">[ ${lang.toUpperCase()} ] ${text}</div>` : '';
+                
+                subBox.innerHTML = `
+                    <div class="sub-speaker">[ ${speaker} AUDIO LINK ]</div>
+                    ${nativeHtml}
+                    ${translationHtml}
+                `;
+                subBox.classList.add('active');
+            }
+        };
+
+        // Hide subtitle when audio finishes
+        msg.onend = () => { if (subBox) subBox.classList.remove('active'); };
+        
+        // Browser safeguard: Sometimes onend fails to fire, so we use a fallback timer based on text length
+        clearTimeout(subtitleTimeout);
+        let durationAvg = Math.max(2000, text.length * 80); 
+        subtitleTimeout = setTimeout(() => {
+            if (subBox) subBox.classList.remove('active');
+        }, durationAvg);
+
+        window.speechSynthesis.speak(msg);
+    }
+}
+
+function matrixLog(msg) {
+    let t = new Date().toISOString().substr(11,8);
+    bgLog.push(`[${t}] ${msg}`);
+    let maxLines = Math.floor((height - 80) / 14);
+    if(bgLog.length > maxLines) bgLog.shift();
+}
+
+function updateNews(headline, outlet = "AL JAZEERA") {
+    const tickerEl = document.getElementById('news-text');
+    if(!tickerEl) return;
+    const current = tickerEl.innerHTML;
+    tickerEl.innerHTML = `<span class="news-source">[${outlet}]</span> ${headline} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ` + current;
+    if (tickerEl.innerHTML.length > 2000) {
+        tickerEl.innerHTML = tickerEl.innerHTML.substring(0, 1500) + "...";
+    }
+}
+
+function resetStats() {
+    lastBattleStats = JSON.parse(JSON.stringify(battleStats));
+    battleStats = { threatsLaunched: 0, decoysSpawned: 0, interceptors: { ARROW: 0, STUNNER: 0, TAMIR: 0 }, kills: { ARROW: 0, STUNNER: 0, TAMIR: 0 }, leaks: 0 };
+    attackActive = false; 
+    document.getElementById('leak-count').innerText = "0";
+    weather.windSpeed = (Math.random() * 20 - 10).toFixed(1);
+    document.getElementById('hud-wind').innerText = `${weather.windSpeed > 0 ? '+' : ''}${weather.windSpeed} m/s`;
+    updateNews("SKIES CLEAR. DEFENSE FORCES STANDING DOWN FROM HIGH ALERT.", "IDF SPOKESPERSON");
+    hideSchematic();
+}
+
+function checkAttackStatus() {
+    if (attackActive && threats.length === 0 && interceptors.length === 0 && particles.length === 0 && shockwaves.length === 0 && !isPaused) {
+        attackActive = false;
+        setTimeout(resetStats, 800); 
+    }
+}
+
+function showSchematic(type) {
+    const win = document.getElementById('schematic-window');
+    const cont = document.getElementById('schematic-content');
+    if(!win || !cont) return;
+    let svgPath = ''; let details = '';
+    
+    if (type === 'FATTAH') {
+        svgPath = '<path d="M150,10 L165,30 L160,100 L175,120 L125,120 L140,100 L135,30 Z" fill="none" stroke="var(--danger)" stroke-width="2"/><line x1="150" y1="10" x2="150" y2="120" stroke="rgba(255,51,51,0.5)" stroke-dasharray="2,2"/>';
+        details = `CLASS: <span>HGV (Glide)</span><br>PROPULSION: <span>SOLID SRBM</span><br>TERMINAL: <span>AERO-WEAVE</span><br>RCS: <span>LOW (PLASMA)</span>`;
+    } else if (type === 'KHEIBAR') {
+        svgPath = '<path d="M150,10 L165,40 L165,80 L180,110 L120,110 L135,80 L135,40 Z" fill="none" stroke="var(--danger)" stroke-width="2"/><line x1="150" y1="10" x2="150" y2="110" stroke="rgba(255,51,51,0.5)" stroke-dasharray="2,2"/>';
+        details = `CLASS: <span>MaRV</span><br>PROPULSION: <span>SOLID FUEL</span><br>TERMINAL: <span>HIGH-G EVASION</span><br>LAT ACCEL: <span>> 10g</span>`;
+    } else if (type === 'EMAD') {
+        svgPath = '<path d="M150,10 L160,25 L160,95 L175,110 L125,110 L140,95 L140,25 Z" fill="none" stroke="var(--danger)" stroke-width="2"/><circle cx="120" cy="50" r="4" fill="none" stroke="orange"/><circle cx="180" cy="70" r="4" fill="none" stroke="orange"/>';
+        details = `CLASS: <span>MRBM</span><br>PROPULSION: <span>LIQUID FUEL</span><br>PAYLOAD: <span>RV + EXO-DECOYS</span><br>APOGEE: <span>> 400km</span>`;
+    } else if (type === 'SHAHED') {
+        svgPath = '<path d="M150,20 L210,110 L150,90 L90,110 Z" fill="none" stroke="#cccc33" stroke-width="2"/><circle cx="150" cy="80" r="3" fill="#cccc33"/>';
+        details = `CLASS: <span>LOITERING UAV</span><br>PROPULSION: <span>ICE PUSHER</span><br>PROFILE: <span>TERRAIN MASKING</span><br>VELOCITY: <span>SUBSONIC</span>`;
+    }
+
+    let color = type === 'SHAHED' ? '#cccc33' : 'var(--danger)';
+    win.style.borderColor = color;
+    win.querySelector('.schematic-header').style.color = color;
+    win.querySelector('.schematic-header').style.borderBottomColor = color;
+    
+    cont.innerHTML = `
+        <div class="schematic-body" style="color: ${color}">
+            <svg class="schematic-svg" viewBox="0 0 300 130">
+                <pattern id="grid" width="15" height="15" patternUnits="userSpaceOnUse">
+                    <path d="M 15 0 L 0 0 0 15" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+                </pattern>
+                <rect width="300" height="130" fill="url(#grid)" />
+                ${svgPath}
+            </svg>
+            <div class="schematic-data">${details}</div>
+        </div>
+    `;
+    win.style.display = 'flex';
+}
+
+function hideSchematic() { 
+    const w = document.getElementById('schematic-window');
+    if(w) w.style.display = 'none'; 
+}
+
+function setView(view) {
+    currentView = view;
+    
+    // Update active tab styling
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    const activeTab = document.getElementById('tab-' + view);
+    if (activeTab) activeTab.classList.add('active');
+    
+    // Play UI sound if audio is initialized
+    if (audio) audio.playUIClick();
+}
+
+function toggleOptics() { 
+    opticsMode = opticsMode === 'REAL' ? 'RADAR' : 'REAL'; 
+    let btn = document.getElementById('btn-optics');
+    if (opticsMode === 'RADAR') {
+        btn.innerText = "[ OPTICS: TACTICAL RADAR ]";
+        btn.style.borderColor = "var(--neon)"; btn.style.color = "var(--neon)";
+    } else {
+        btn.innerText = "[ OPTICS: REALISTIC NIGHT SKY ]";
+        btn.style.borderColor = "#55ffff"; btn.style.color = "#55ffff";
+    }
+    if(audio) audio.playUIClick(); 
+}
+
+function toggleFullscreen() { 
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => console.log(err));
+    } else { document.exitFullscreen(); }
+    if(audio) audio.playUIClick(); 
+}
+
+function toggleChatbot() {
+    const botWindow = document.getElementById('ai-bot-window');
+    
+    // Toggle between flex and none
+    if (botWindow.style.display === 'none' || botWindow.style.display === '') {
+        botWindow.style.display = 'flex';
+        // Auto-focus the input field when opened
+        setTimeout(() => document.getElementById('ai-bot-input').focus(), 100);
+    } else {
+        botWindow.style.display = 'none';
+    }
+    
+    // Play the UI click sound if the audio engine is running
+    if (audio) audio.playUIClick();
+}
+
+function exportResearchPDF() {
+    if (audio) audio.playUIClick();
+    
+    const printContainer = document.getElementById('research-print-container');
+    const chatContent = document.getElementById('ai-bot-messages').innerHTML;
+    
+    // Format the chat history for the printed page
+    printContainer.innerHTML = `
+        <div style="font-family: monospace; max-width: 800px; margin: 0 auto;">
+            <h2 style="border-bottom: 2px solid #000; padding-bottom: 10px; text-transform: uppercase;">SMAD RESEARCH AI // DECLASSIFIED REPORT</h2>
+            <div style="margin-top: 20px; line-height: 1.6;">
+                ${chatContent
+                    // Strip the dark-mode CSS classes and replace them with print-friendly inline styles
+                    .replace(/class="bot-msg"/g, 'style="margin-bottom: 15px; padding: 10px; border-left: 3px solid #000; background: #f4f4f4;"')
+                    .replace(/class="user-msg"/g, 'style="margin-bottom: 15px; padding: 10px; text-align: right; font-weight: bold;"')
+                }
+            </div>
+            <div style="margin-top: 40px; font-size: 0.8em; color: #555; text-align: center; border-top: 1px dashed #ccc; padding-top: 10px;">
+                [ REPORT GENERATED BY AEGIS TACTICAL CONSOLE ]
+            </div>
+        </div>
+    `;
+    
+    // Apply the specific print class defined in your CSS
+    document.body.classList.add('print-research');
+    
+    // Trigger the browser's Print/Save to PDF dialog
+    window.print();
+    
+    // Clean up the class after the print dialog closes
+    setTimeout(() => {
+        document.body.classList.remove('print-research');
+    }, 1000);
+}
+
+function handleChatSubmit() {
+    const inputEl = document.getElementById('ai-bot-input');
+    const messagesEl = document.getElementById('ai-bot-messages');
+    const query = inputEl.value.trim();
+    
+    if (!query) return; // Don't send empty messages
+    
+    if (audio) audio.playUIClick();
+    
+    // 1. Append User Message
+    const userMsg = document.createElement('div');
+    userMsg.className = 'user-msg';
+    userMsg.innerText = query;
+    messagesEl.appendChild(userMsg);
+    
+    // Clear input field and scroll to bottom
+    inputEl.value = '';
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    
+    // 2. Simulate AI Processing & Response
+    setTimeout(() => {
+        const botMsg = document.createElement('div');
+        botMsg.className = 'bot-msg';
+        
+        const qUpper = query.toUpperCase();
+        let response = "Querying DoD/SMAD archives... Based on general kinematic models, maintaining a multi-tiered defense posture is highly recommended for optimal survivability.";
+        
+        // Contextual mock responses based on the simulator's lore
+        if (qUpper.includes("WTA") || qUpper.includes("WEAPON TARGET")) {
+            response = "[REF: WTA OPTIMIZATION] Combinatorial Weapon-Target Assignment using RL maximizes global survival by efficiently allocating Arrow, Stunner, and Tamir effectors against varied threat profiles to prevent magazine depletion.";
+        } else if (qUpper.includes("KINEMATIC") || qUpper.includes("OVERMATCH")) {
+            response = "[REF: KINEMATIC OVERMATCH] To successfully defeat high-G terminal maneuvers (MaRV), the interceptor requires a minimum 3:1 lateral acceleration advantage over the threat vehicle.";
+        } else if (qUpper.includes("CNN") || qUpper.includes("NEURAL")) {
+            response = "[REF: AI KILL ASSESSMENT] Neural networks (CNNs) classify micro-Doppler radar signatures in milliseconds via Softmax probabilities, drastically reducing OODA loop latency during saturation events.";
+        } else if (qUpper.includes("MONTE CARLO") || qUpper.includes("ESTIMATION")) {
+            response = "[REF: STOCHASTIC ESTIMATION] Monte Carlo simulations allow Aegis Command to calculate expected salvo leakage probabilities across thousands of randomized intercept geometries. Use the terminal command `MONTE CARLO [QTY]` to run a localized sim.";
+        }
+        
+        botMsg.innerText = response;
+        messagesEl.appendChild(botMsg);
+        messagesEl.scrollTop = messagesEl.scrollHeight; // Scroll down again
+        
+        if (audio) audio.playKeystroke();
+    }, 600); // 600ms artificial delay for realism
+}
+
+// Attach an event listener so pressing "Enter" also submits the chat
+document.getElementById('ai-bot-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        handleChatSubmit();
+    }
+});
+
+function updateScores(isAegis, points) {
+    if (isAegis) {
+        aegisScore += points;
+        document.getElementById('score-aegis').innerText = aegisScore;
+    } else {
+        opforScore += points;
+        document.getElementById('score-opfor').innerText = opforScore;
+    }
+    
+    let stage = CAMPAIGN_STAGES[currentStageIdx];
+    if (stage && (aegisScore >= stage.ptsToAdvance || opforScore >= stage.ptsToAdvance)) {
+        matrixLog(`[CAMPAIGN] THRESHOLD REACHED. READY TO ADVANCE STAGE.`);
+    }
+}
+
+function advanceStage() {
+    if (currentStageIdx < CAMPAIGN_STAGES.length - 1) {
+        currentStageIdx++;
+        let stage = CAMPAIGN_STAGES[currentStageIdx];
+        document.getElementById('hud-stage-name').innerText = stage.name;
+        document.getElementById('hud-stage-target').innerText = "TARGET: " + stage.target;
+        matrixLog(`[CAMPAIGN] ADVANCING TO ${stage.name}.`);
+        updateNews(`DEFENSE CONDITION ESCALATED TO ${stage.name}. EXPECT HEAVY RESISTANCE.`, "CENTCOM");
+        if(audio) audio.playAlarm();
+        
+        attackActive = true;
+        stage.wave.forEach((t, i) => {
+            setTimeout(() => { 
+                threats.push(new Threat(t)); 
+                battleStats.threatsLaunched++; 
+                matrixLog(`[DSP SENSOR] HOSTILE LAUNCH DETECTED: ${t}`);
+            }, i * 700 + Math.random()*300);
+        });
+    }
+}
+
+async function runMonteCarlo(side, cmd) {
+
+    
+// Parse the requested number of iterations (e.g., "MONTE CARLO 100")
+    let parts = cmd.split(' ');
+    let runs = parseInt(parts[2]);
+    if (isNaN(runs) || runs <= 0) runs = 100;
+    if (runs > 5000) runs = 5000; // Cap to prevent UI freezing
+
+    // Determine which terminal called the function
+    let typeWriter = side === 'OPFOR' ? typeOpforText : typeC2Text;
+    
+    await typeWriter(`> INIT STOCHASTIC ESTIMATION: ${runs} ITERATIONS...`, 15);
+    
+    // Trigger the Reinforcement Learning WTA Equation in the background
+    // Using the neon pink color (#ff00ff) to match your theory card
+    flashEquation("\\min \\sum \\left[ \\prod (1 - P_{ij})^{x_{ij}} \\right] V_j", "#ff00ff");
+    
+    // Base kill probabilities
+    let hitA = 0, hitS = 0, hitT = 0;
+    let pkA = AD_DATA.ARROW.pk;
+    let pkS = AD_DATA.STUNNER.pk;
+    let pkT = AD_DATA.TAMIR.pk;
+
+    // Apply EW modifier if active
+    if (ewJammingActive > 0) {
+        pkA *= 0.70; pkS *= 0.70; pkT *= 0.70;
+        await typeWriter(`> [WARN] EW JAMMING ACTIVE. EXPECT DEGRADED P(k).`, 10);
+    }
+
+    // Run the iterations
+    for(let i = 0; i < runs; i++) {
+        if(Math.random() < pkA) hitA++;
+        if(Math.random() < pkS) hitS++;
+        if(Math.random() < pkT) hitT++;
+    }
+
+    // Calculate simulated efficacies
+    let pA = ((hitA / runs) * 100).toFixed(1);
+    let pS = ((hitS / runs) * 100).toFixed(1);
+    let pT = ((hitT / runs) * 100).toFixed(1);
+    
+    // Joint probability of all layers failing
+    let expectedLeakage = (1 - (hitA / runs)) * (1 - (hitS / runs)) * (1 - (hitT / runs));
+
+    // Print results
+    await typeWriter(`> [RESULTS] ARROW-3 (EXO) P(k): ${pA}%`, 10);
+    await typeWriter(`> [RESULTS] STUNNER (ENDO) P(k): ${pS}%`, 10);
+    await typeWriter(`> [RESULTS] TAMIR (C-RAM) P(k): ${pT}%`, 10);
+    
+    if (side === 'OPFOR') {
+        await typeWriter(`> SYSTEM SURVIVABILITY: ${(expectedLeakage * 100).toFixed(3)}% CHANCE TO PENETRATE.`, 10);
+        await typeWriter(`> RECOMMENDATION: INCREASE SALVO DENSITY TO FORCE SATURATION.`, 10);
+    } else {
+        await typeWriter(`> SATURATION LEAKAGE PROBABILITY: ${(expectedLeakage * 100).toFixed(3)}% PER THREAT.`, 10);
+        await typeWriter(`> C2 RECOMMENDATION: MAINTAIN LAYERED DEFENSE DOCTRINE.`, 10);
+    }
+}
+
+function activateChronoShift() {
+    if (chronoShiftActive > 0) return;
+    if (audio) audio.playUIClick();
+    speakTTS("הפעלת מניפולציית זמן. עיוות כרונולוגי פעיל.", "he-IL", "Time dilation engaged. Chronological distortion active.", "AEGIS CHRONO-DIV");
+    matrixLog("[TACTICAL ABILITY] CHRONO-SHIFT (TIME DILATION) ACTIVATED.");
+    chronoShiftActive = 600; 
+}
+
+function activateEWJamming() {
+    if (ewJammingActive > 0) return;
+    if (audio) audio.playUIClick();
+    speakTTS("לוחמה אלקטרונית מופעלת. חסימת ספקטרום רדאר בתוקף.", "he-IL", "EW Jamming engaged. Radar spectrum flooding active.", "AEGIS EW-DIV");
+    matrixLog("[TACTICAL ABILITY] EW SPECTRUM JAMMING ACTIVATED. RADAR PK REDUCED.");
+    ewJammingActive = 600; 
+}
+
+// ==========================================
+// 6. CLASSES (Entities)
+// ==========================================
+
+class Trail {
+    constructor(color, maxWidth) { 
+        this.points = []; 
+        this.color = color; 
+        this.maxWidth = maxWidth; 
+        this.maxLen = performanceMode ? 15 : 25; // Dynamic length based on performance
+    }
+    
+    update(x, y) { 
+        this.points.unshift({x, y}); 
+        if(this.points.length > this.maxLen) this.points.pop(); 
+    }
+    
+    draw(ctx) {
+        if(this.points.length < 2) return;
+        
+        if (opticsMode === 'REAL') {
+            // OPTIMIZATION 1: Only use shadow/glow if not in performance mode
+            if (!performanceMode) {
+                ctx.shadowBlur = 8; 
+                ctx.shadowColor = `rgba(${this.color}, 0.8)`;
+            }
+
+            // OPTIMIZATION 2: Draw everything in ONE path instead of a loop
+            ctx.beginPath();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = this.maxWidth;
+            
+            // OPTIMIZATION 3: Use a Linear Gradient for the fade instead of opacity calcs per segment
+            let grad = ctx.createLinearGradient(
+                this.points[0].x, this.points[0].y, 
+                this.points[this.points.length-1].x, this.points[this.points.length-1].y
+            );
+            grad.addColorStop(0, `rgba(${this.color}, 1)`);
+            grad.addColorStop(1, `rgba(${this.color}, 0)`);
+            
+            ctx.strokeStyle = grad;
+            ctx.moveTo(this.points[0].x, this.points[0].y);
+            
+            for(let i = 1; i < this.points.length; i++) {
+                ctx.lineTo(this.points[i].x, this.points[i].y);
+            }
+            
+            ctx.stroke();
+            ctx.shadowBlur = 0; // Reset immediately
+            
+        } else {
+            // RADAR MODE: Pixelated optimized draw
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(${this.color}, 0.5)`; 
+            ctx.lineWidth = 2;
+            ctx.moveTo(Math.floor(this.points[0].x/3)*3, Math.floor(this.points[0].y/3)*3);
+            for(let i=1; i < this.points.length; i+=2) { 
+                ctx.lineTo(Math.floor(this.points[i].x/3)*3, Math.floor(this.points[i].y/3)*3);
+            }
+            ctx.stroke();
+        }
+    }
+}
+
+class Particle {
+    constructor(x, y, vx, vy, color, life, size) {
+        this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.color = color; this.life = life; this.maxLife = life; this.size = size; this.drag = 0.95;
+    }
+    update() {
+        this.vx += parseFloat(weather.windSpeed) * 0.01;
+        this.x += this.vx; this.y += this.vy;
+        this.life--; return this.life > 0;
+    }
+    draw(ctx) {
+        let alpha = this.life / this.maxLife; ctx.globalAlpha = alpha;
+        ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.size * alpha, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+class Shockwave {
+    constructor(x, y, isExo, isMassive) { this.x = x; this.y = y; this.radius = 1; this.life = 1.0; this.isExo = isExo; this.isMassive = isMassive; }
+    update() { this.radius += 10; this.life -= 0.05; return this.life > 0; }
+    draw(ctx) { ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.strokeStyle = `rgba(255,255,255,${this.life*0.5})`; ctx.stroke(); }
+}
+
+function createExplosion(x, y, scale = 1.0, isExo = false, isGroundHit = false) {
+    if (isGroundHit) scale *= 4.0;
+    shockwaves.push(new Shockwave(x, y, isExo, isGroundHit));
+    particles.push(new Particle(x, y, 0, 0, "#ffffff", 10 * scale, 30 * scale));
+    let fColor = isExo ? "#aaaaff" : "#ff8800"; 
+    let smokeColor = isExo ? "#222255" : "#555555";
+    
+    let pCount = isGroundHit ? 80 : 30 * scale;
+    for(let i=0; i<pCount; i++) {
+        let angle = isGroundHit ? Math.random() * Math.PI : Math.random() * Math.PI * 2; 
+        let speed = Math.random() * 8 * scale;
+        let vy = isGroundHit ? -Math.abs(Math.sin(angle))*speed : Math.sin(angle)*speed;
+        let p = new Particle(x, y, Math.cos(angle)*speed, vy, Math.random()>0.5?fColor:"#ffffff", 30 + Math.random()*(isGroundHit?60:20), 2 + Math.random()*3);
+        if(isGroundHit) p.drag = 0.92;
+        particles.push(p);
+    }
+    if (!isExo) {
+        for(let i=0; i<15 * scale; i++) {
+            let angle = isGroundHit ? Math.random() * Math.PI : Math.random() * Math.PI * 2; 
+            let speed = Math.random() * 3 * scale;
+            let vy = isGroundHit ? -Math.abs(Math.sin(angle))*speed : Math.sin(angle)*speed;
+            let p = new Particle(x, y, Math.cos(angle)*speed, vy, smokeColor, 50 + Math.random()*(isGroundHit?80:30), 10 + Math.random()*15);
+            p.drag = 0.9; particles.push(p);
+        }
+    }
+}
+
+class Threat {
+    constructor(type, xOverride, yOverride, vxOverride, vyOverride) {
+        this.type = type; this.data = THREAT_DATA[type];
+        
+        let safeW = width || 800;
+        this.x = xOverride !== undefined ? xOverride : Math.random() * (safeW - 200) + 100;
+        this.y = yOverride !== undefined ? yOverride : -50;
+        
+        this.vx = vxOverride !== undefined ? vxOverride : (Math.random() - 0.5) * 2; 
+        this.vy = vyOverride !== undefined ? vyOverride : this.data.speed;
+        this.baseVy = this.data.speed;
+        this.angle = Math.atan2(this.vy, this.vx); this.trail = new Trail(this.data.color, 4 * this.data.size);
+        this.phase = Math.random() * Math.PI * 2; this.decoysDeployed = false;
+        this.ax = 0; this.ay = 0; this.lastVx = this.vx; this.lastVy = this.vy;
+        this.isDrillTarget = false; this.drillHandled = false;
+    }
+    update() {
+        let evading = interceptors.some(i => Vector.dist(this, i) < 500 && !this.data.isDecoy);
+        let t = simTime * 0.05 + this.phase;
+        
+        let safeH = height || 600;
+        let safeW = width || 800;
+
+        if (this.type === 'FATTAH' && this.y > safeH * 0.2 && this.y < safeH * 0.6) {
+            this.vy *= 0.96; this.vy = Math.max(this.vy, 1.5);
+            let targetVx = (this.x > safeW/2) ? -5 : 5; this.vx += (targetVx - this.vx) * 0.08;
+        } else if (this.type === 'KHEIBAR' && evading && this.y > safeH * 0.4) {
+            let targetVx = Math.sin(t) * 9; this.vx += (targetVx - this.vx) * 0.15; this.vy = this.baseVy * 0.8; 
+        } else if (this.type === 'EMAD' && this.y > safeH * 0.15 && !this.decoysDeployed) {
+            this.decoysDeployed = true;
+            for(let i=0; i<2; i++) { 
+                let dt = new Threat('DECOY', this.x, this.y, this.vx + (Math.random()-0.5)*3, this.vy * 0.95);
+                threats.push(dt); battleStats.decoysSpawned++; 
+                matrixLog(`[SENSOR] EXO-ATMOSPHERIC STAGING DETECTED. DECOYS DEPLOYED BY EMAD.`);
+            }
+        } else if (this.type === 'SHAHED') {
+            this.vx = Math.sin(t * 0.5) * 1.5;
+            this.vy = this.baseVy;
+        } else {
+            this.vx *= 0.98; this.vy += (this.baseVy - this.vy) * 0.05;
+        }
+
+        this.vx += parseFloat(weather.windSpeed) * 0.0005;
+
+        this.ax = this.vx - this.lastVx; this.ay = this.vy - this.lastVy;
+        this.lastVx = this.vx; this.lastVy = this.vy;
+        
+        let dt = chronoShiftActive > 0 ? 0.3 : 1.0;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        
+        this.angle = Math.atan2(this.vy, this.vx); this.trail.update(this.x, this.y);
+
+        if(Math.random() > 0.4) {
+            let ex = this.x - Math.cos(this.angle) * (15 * this.data.size); let ey = this.y - Math.sin(this.angle) * (15 * this.data.size);
+            particles.push(new Particle(ex, ey, this.vx*0.2 + (Math.random()-0.5), this.vy*0.2 + (Math.random()-0.5), opticsMode === 'REAL' ? "#ff4400" : `rgb(${this.data.color})`, 20, 3 * this.data.size));
+        }
+        return this.y < safeH + 50;
+    }
+    draw(ctx) {
+        this.trail.draw(ctx);
+        ctx.save(); 
+        
+        if(opticsMode === 'RADAR') {
+            ctx.fillStyle = this.data.isDecoy ? "orange" : "red";
+            ctx.fillRect(Math.floor(this.x/4)*4 - 4, Math.floor(this.y/4)*4 - 4, 8, 8);
+            
+            let isTargetedByInt = interceptors.some(i => i.target === this && Vector.dist(this, i) < 600);
+            if (this.isDrillTarget || isTargetedByInt) { 
+                ctx.strokeStyle = "white"; ctx.lineWidth = 1;
+                ctx.strokeRect(Math.floor(this.x/4)*4 - 12, Math.floor(this.y/4)*4 - 12, 24, 24);
+            }
+            ctx.restore();
+            return;
+        }
+
+        // REALISTIC MODE DRAW
+        ctx.translate(this.x, this.y); 
+
+        let isTargetedByInt = interceptors.some(i => i.target === this && Vector.dist(this, i) < 600);
+        if (this.isDrillTarget || isTargetedByInt) { 
+            let scaleFactor = 1 + Math.abs(Math.sin(renderTime * 0.08)) * 0.5; 
+            ctx.scale(scaleFactor, scaleFactor);
+            ctx.strokeStyle = "rgba(0, 255, 85, 0.8)"; ctx.lineWidth = 1;
+            
+            ctx.beginPath();
+            ctx.moveTo(-15, -10); ctx.lineTo(-15, -15); ctx.lineTo(-10, -15);
+            ctx.moveTo(15, -10); ctx.lineTo(15, -15); ctx.lineTo(10, -15);
+            ctx.moveTo(-15, 10); ctx.lineTo(-15, 15); ctx.lineTo(-10, 15);
+            ctx.moveTo(15, 10); ctx.lineTo(15, 15); ctx.lineTo(10, 15);
+            ctx.stroke();
+            
+            ctx.strokeStyle = "rgba(255, 51, 51, 0.5)";
+            ctx.beginPath(); ctx.moveTo(-25, 0); ctx.lineTo(-10, 0); ctx.moveTo(25, 0); ctx.lineTo(10, 0); ctx.moveTo(0, -25); ctx.lineTo(0, -10); ctx.moveTo(0, 25); ctx.lineTo(0, 10); ctx.stroke();
+        }
+
+        ctx.rotate(this.angle);
+        ctx.fillStyle = "#222"; ctx.strokeStyle = `rgb(${this.data.color})`; ctx.lineWidth = 1;
+        let s = this.data.size; ctx.beginPath();
+        if(this.type === 'FATTAH') { ctx.moveTo(15*s, 0); ctx.lineTo(-5*s, -6*s); ctx.lineTo(-10*s, 0); ctx.lineTo(-5*s, 6*s); } 
+        else if (this.type === 'SHAHED') { ctx.moveTo(10*s, 0); ctx.lineTo(-10*s, -15*s); ctx.lineTo(-5*s, 0); ctx.lineTo(-10*s, 15*s); } 
+        else if (this.type === 'DECOY') { ctx.arc(0, 0, 4*s, 0, Math.PI*2); } 
+        else { ctx.moveTo(15*s, 0); ctx.lineTo(5*s, -4*s); ctx.lineTo(-10*s, -4*s); ctx.lineTo(-15*s, -8*s); ctx.lineTo(-15*s, 8*s); ctx.lineTo(-10*s, 4*s); ctx.lineTo(5*s, 4*s); }
+        ctx.closePath(); ctx.fill(); ctx.stroke(); 
+        
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "#ff0000";
+        ctx.fillStyle = "#ffaaaa";
+        ctx.beginPath(); ctx.arc(this.type === 'SHAHED' ? -5*s : 10*s, 0, 2, 0, Math.PI*2); ctx.fill();
+        
+        ctx.restore();
+    }
+}
+
+class Interceptor {
+    constructor(target, type) {
+        this.target = target; this.type = type; this.data = AD_DATA[type];
+        let b = BATTERIES[type]; this.x = b.x; this.y = b.y;
+        this.vx = 0; this.vy = -5; this.speed = this.data.speed;
+        this.turnRate = this.data.turnRate; this.trail = new Trail(this.data.color, 3);
+        this.angle = -Math.PI/2;
+        
+        battleStats.interceptors[type]++;
+        
+        for(let k=0; k<15; k++) { particles.push(new Particle(this.x, this.y, (Math.random()-0.5)*4, (Math.random()-0.5)*-2 - 2, "#fff", 30, 2)); }
+        if(audio) audio.playLaunch(type==='ARROW'?0.6:1.0);
+        // Trigger Background Math Compilation
+        switch(this.type) {
+            case 'TAMIR':
+                // Proportional Navigation
+                flashEquation("a_c = N' \\cdot V_c \\cdot \\dot{\\lambda}", "var(--tamir)");
+                break;
+            case 'STUNNER':
+                // Augmented Proportional Navigation
+                flashEquation("a_c = N' V_c \\dot{\\lambda} + \\frac{N'}{2} a_T", "var(--stunner)");
+                break;
+            case 'ARROW':
+                // Zero-Effort Miss (ZEM)
+                flashEquation("ZEM = \\vec{r}_{tg} + \\vec{v}_{tg} \\cdot t_{go}", "var(--arrow)");
+                break;
+        }
+    }
+    update() {
+        let safeH = height || 600;
+        let safeW = width || 800;
+
+        if (!threats.includes(this.target)) { createExplosion(this.x, this.y, 0.5, this.y < safeH*0.3, false); return false; }
+        let targetVec = Vector.sub(this.target, this); let dist = Vector.mag(targetVec);
+
+        if (dist < (this.type==='ARROW'?25:15)) {
+            let interceptChance = this.data.pk;
+            if (this.target.type === 'FATTAH') interceptChance *= 0.60;
+            else if (this.target.type === 'KHEIBAR') interceptChance *= 0.75;
+            else if (this.target.type === 'SHAHED') interceptChance *= 0.90; 
+            
+            if (ewJammingActive > 0) interceptChance *= 0.70;
+
+            if (Math.random() <= interceptChance) {
+                battleStats.kills[this.type]++; 
+                updateScores(true, 100); 
+                matrixLog(`[KINEMATICS] ${this.type} SUCCESSFULLY INTERCEPTED ${this.target.type}. P(k)=${(interceptChance*100).toFixed(1)}%`);
+                createExplosion(this.target.x, this.target.y, this.type==='ARROW'?2.0:1.0, this.y < safeH*0.3, false);
+                threats = threats.filter(t => t !== this.target);
+                if (currentView === 'TACTICAL') screenShake = this.type==='ARROW' ? 20 : 10;
+                if(audio) audio.playExplosion(this.y < safeH*0.3);
+                speakTTS("מטרה הושמדה. איום נוטרל, המרחב האווירי נקי.", "he-IL", "Splash one. Threat neutralized, airspace is clear.", "AEGIS C2");
+            } else {
+                matrixLog(`[KINEMATICS] ${this.type} MISSED ${this.target.type}. PURSUIT-EVASION GEOMETRY FAILED.`);
+                createExplosion(this.x, this.y, 0.8, this.y < safeH*0.3, false);
+                if(audio) audio.playExplosion(this.y < safeH*0.3);
+            }
+            return false;
+        }
+
+        let predictedTargetX = this.target.x; let predictedTargetY = this.target.y; let leadTime = dist / this.speed;
+        if (this.data.guidance === 'ZEM') { predictedTargetX += this.target.vx * leadTime; predictedTargetY += this.target.vy * leadTime; } 
+        else if (this.data.guidance === 'APN') { predictedTargetX += this.target.vx * leadTime + 0.5 * this.target.ax * leadTime * leadTime; predictedTargetY += this.target.vy * leadTime + 0.5 * this.target.ay * leadTime * leadTime; }
+        else { predictedTargetX += this.target.vx * leadTime * 0.8; predictedTargetY += this.target.vy * leadTime * 0.8; }
+        
+        let desiredAngle = Math.atan2(predictedTargetY - this.y, predictedTargetX - this.x);
+        let angleDiff = desiredAngle - this.angle; angleDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
+        if (angleDiff > this.turnRate) this.angle += this.turnRate; else if (angleDiff < -this.turnRate) this.angle -= this.turnRate; else this.angle = desiredAngle;
+
+        this.vx = Math.cos(this.angle) * this.speed; this.vy = Math.sin(this.angle) * this.speed;
+        this.vx += parseFloat(weather.windSpeed) * 0.0005;
+
+        let dt = chronoShiftActive > 0 ? 0.3 : 1.0;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        this.trail.update(this.x, this.y);
+        let ex = this.x - Math.cos(this.angle) * 10; let ey = this.y - Math.sin(this.angle) * 10;
+        particles.push(new Particle(ex, ey, -this.vx*0.1, -this.vy*0.1, opticsMode === 'REAL' ? "#ffffff" : this.data.pColor, 15, 2));
+
+        if(this.y < -100 || this.x < -100 || this.x > safeW + 100) return false;
+        return true;
+    }
+    draw(ctx) {
+        this.trail.draw(ctx);
+        ctx.save(); 
+        
+        if (opticsMode === 'RADAR') {
+            ctx.fillStyle = "cyan";
+            ctx.fillRect(Math.floor(this.x/4)*4 - 3, Math.floor(this.y/4)*4 - 3, 6, 6);
+            ctx.restore();
+            return;
+        }
+
+        ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+        ctx.fillStyle = "#fff"; ctx.beginPath();
+        if(this.type === 'STUNNER') { ctx.moveTo(10, 2); ctx.lineTo(-5, -3); ctx.lineTo(-5, 4); } 
+        else { ctx.moveTo(10, 0); ctx.lineTo(-5, -3); ctx.lineTo(-5, 3); }
+        ctx.closePath(); ctx.fill();
+        ctx.shadowBlur = 15; ctx.shadowColor = this.data.pColor; ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.arc(-5, 0, 3, 0, Math.PI*2); ctx.fill(); 
+        
+        ctx.restore();
+    }
+}
+
+// ==========================================
+// 7. TERMINAL EVENT LISTENERS & LOGIC
+// ==========================================
+
+function cancelDrill() {
+    document.getElementById('drill-offense').style.display = 'none';
+    document.getElementById('drill-defense').style.display = 'none';
+    hideSchematic();
+    isPaused = false; drillState = 'IDLE'; opforState = 'IDLE';
+    if (activeDrillTarget) { activeDrillTarget.isDrillTarget = false; activeDrillTarget = null; }
+    if(audio) audio.playUIClick();
+}
+
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelDrill(); });
+
+async function typeOpforText(text, delay = 15) {
+    opforTypeWriterActive = true;
+    let log = document.getElementById('opfor-log');
+    let span = document.createElement('span');
+    log.appendChild(span); log.appendChild(document.createElement('br'));
+    for(let i=0; i<text.length; i++) {
+        span.innerHTML += text.charAt(i);
+        if(audio && i%2===0) audio.playKeystroke();
+        log.scrollTop = log.scrollHeight; await new Promise(r => setTimeout(r, delay));
+    }
+    opforTypeWriterActive = false;
+}
+
+async function typeC2Text(text, delay = 15) {
+    drillTypeWriterActive = true;
+    let log = document.getElementById('c2-log');
+    let span = document.createElement('span');
+    log.appendChild(span); log.appendChild(document.createElement('br'));
+    for(let i=0; i<text.length; i++) {
+        span.innerHTML += text.charAt(i);
+        if(audio && i%2===0) audio.playKeystroke();
+        log.scrollTop = log.scrollHeight; await new Promise(r => setTimeout(r, delay));
+    }
+    drillTypeWriterActive = false;
+}
+
+async function openDrillPlanner() {
+    if(audio) audio.playUIClick();
+    document.getElementById('drill-offense').style.display = 'flex';
+    document.getElementById('opfor-log').innerHTML = '';
+    setTimeout(() => document.getElementById('opfor-input').focus(), 100);
+    opforState = 'PAYLOAD';
+    await typeOpforText("> ESTABLISHED CONNECTION TO LAUNCH SILOS. [ارتباط با سیلوها برقرار شد]", 15);
+    await typeOpforText("> ENTER COMMAND: `LOAD [PAYLOAD] [QTY]` | `LOAD SCENARIO [1-4]` | `MONTE CARLO [QTY]`", 15);
+}
+
+document.getElementById('opfor-input').addEventListener('keydown', async function(e) {
+    if(e.key === 'Enter') {
+        let cmd = this.value.trim().toUpperCase();
+        this.value = ''; if(cmd === '') return;
+        let log = document.getElementById('opfor-log');
+        log.innerHTML += `<br><span style="color:#fff; font-weight:bold;">strike-cmd@opfor:~$ ${cmd}</span>`;
+        if(opforTypeWriterActive) return;
+        
+        let parts = cmd.split(' ');
+        
+        if (cmd === 'HELP') { await typeOpforText("> LOAD [PAYLOAD] [QTY] | LOAD SCENARIO [1-4] | EXECUTE STRIKE | ANALYZE STRIKE | OPTIMIZE TACTICS | MONTE CARLO [QTY] | CLEAR", 5); return; }
+        if (cmd === 'CLEAR') { log.innerHTML = ''; return; }
+        if (cmd === 'OPTIMIZE TACTICS') { await typeOpforText("> COMPUTING KINEMATIC OVERMATCH RECIPE...", 15); return; }
+        if (cmd.startsWith('MONTE CARLO')) { runMonteCarlo('OPFOR', cmd); return; }
+
+        if (parts[0] === 'LOAD') {
+            if (parts[1] === 'SCENARIO') {
+                let scn = parts[2];
+                if (scn === '1') { drillPayload = { type: 'EMAD', qty: 5 }; }
+                else if (scn === '2') { drillPayload = { type: 'KHEIBAR', qty: 8 }; }
+                else if (scn === '3') { drillPayload = { type: 'FATTAH', qty: 3 }; }
+                else if (scn === '4') { drillPayload = { type: 'SHAHED', qty: 15 }; }
+                opforState = 'EXECUTE'; await typeOpforText(`> SCENARIO ${scn} LOADED. EXECUTE STRIKE?`, 15);
+            } else {
+                let p = parts[1]; let q = parseInt(parts[2]) || 1;
+                if(THREAT_DATA[p]) { drillPayload = { type: p, qty: q }; opforState = 'EXECUTE'; await typeOpforText(`> ${p} x${q} LOADED.`, 15); }
+            }
+        } else if (cmd === 'EXECUTE STRIKE') {
+            if(audio) audio.playAlarm(); speakTTS("پرتاب تایید شد. موشک‌ها در مسیر هدف هستند.", "fa-IR", "Launch confirmed. Vampires are inbound on target trajectory.", "OPFOR SILO");
+            document.getElementById('drill-offense').style.display = 'none';
+            attackActive = true; let lt = drillPayload.type; let lq = drillPayload.qty; drillPayload = { type: null, qty: 1 };
+            for(let i=0; i<lq; i++) { setTimeout(() => { let t = new Threat(lt); if(i === 0) { t.isDrillTarget = true; showSchematic(lt); } threats.push(t); battleStats.threatsLaunched++; }, i * 600 + Math.random()*200); }
+        }
+    }
+});
+
+document.getElementById('c2-input').addEventListener('keydown', async function(e) {
+    if (e.key === 'Enter') {
+        let cmd = this.value.trim().toUpperCase();
+        this.value = ''; if(cmd === '') return;
+        let log = document.getElementById('c2-log');
+        log.innerHTML += `<br><span style="color:#fff; font-weight:bold;">aegis@c2-node:~$ ${cmd}</span>`;
+        if(drillTypeWriterActive) return; 
+
+        if (cmd === 'HELP') { await typeC2Text("> SCAN -RADAR | ALLOCATE [SYSTEM] | AUTH FIRE | UPLINK POTUS | MONTE CARLO [QTY] | EXPORT NEWS | STATS | CLEAR", 5); return; }
+        if (cmd === 'CLEAR') { log.innerHTML = ''; return; }
+        if (cmd.startsWith('MONTE CARLO')) { runMonteCarlo('C2', cmd); return; }
+        if (cmd === 'EXPORT NEWS') {
+            document.getElementById('news-print-container').innerHTML = `<h2>GLOBAL SITUATION REPORT - AEGIS COMMAND</h2><p>${document.getElementById('news-text').innerText}</p><ul>${bgLog.map(l => `<li>${l}</li>`).join('')}</ul>`;
+            document.body.classList.add('print-news'); window.print();
+            setTimeout(() => document.body.classList.remove('print-news'), 1000); return;
+        }
+        if (cmd === 'STATS') { await typeC2Text(`> SYSTEM EFFICACY: ${((battleStats.threatsLaunched - battleStats.leaks) / Math.max(1, battleStats.threatsLaunched) * 100).toFixed(1)}%`, 10); return; }
+        
+        if (drillState === 'RADAR' && cmd === 'SCAN -RADAR') { drillStepDiscriminate(); } 
+        else if (drillState === 'ALLOCATE' && cmd.startsWith('ALLOCATE ')) { drillStepAllocate(cmd.split(' ')[1]); }
+        else if (drillState === 'FIRE' && cmd === 'AUTH FIRE') { drillStepFire(); }
+    }
+});
+
+async function startDefenseDrillPhase(threat) {
+    isPaused = true; activeDrillTarget = threat; drillState = 'RADAR';
+    document.getElementById('c2-log').innerHTML = '';
+    document.getElementById('drill-defense').style.display = 'flex';
+    setTimeout(() => document.getElementById('c2-input').focus(), 100);
+    await typeC2Text("> WARNING: DSP DETECTS THERMAL BLOOM. [אזהרה: זיהוי תרמי]", 20);
+    await typeC2Text("> ENTER COMMAND: `SCAN -RADAR`", 20);
+    flashEquation("\\sigma(z)_i = \\frac{e^{z_i}}{\\sum e^{z_j}}", "#00ffff");
+}
+
+async function drillStepDiscriminate() {
+    if(audio) audio.playUIClick();
+    await typeC2Text("> SCANNING... CNN CLASSIFIER RESOLVED SIGNATURE.", 10);
+    await typeC2Text(`> THREAT: ${activeDrillTarget.type} CLASS DETECTED.`);
+    await typeC2Text("> ENTER COMMAND: `ALLOCATE [ARROW|STUNNER|TAMIR]`", 20);
+    drillState = 'ALLOCATE';
+}
+
+async function drillStepAllocate(type) {
+    if(!AD_DATA[type]) return;
+    selectedDrillWeapon = type;
+    await typeC2Text(`> ${type} EFFECTOR LOCKED.`);
+    await typeC2Text("> ENTER COMMAND: `AUTH FIRE`", 20);
+    drillState = 'FIRE';
+}
+
+function drillStepFire() {
+    document.getElementById('drill-defense').style.display = 'none';
+    interceptors.push(new Interceptor(activeDrillTarget, selectedDrillWeapon));
+    isPaused = false; hideSchematic();
+}
+
+function launchThreat(type) { threats.push(new Threat(type)); battleStats.threatsLaunched++; attackActive = true; }
+function launchSalvo() { 
+    if (threats.length > 20) return; // Prevent accidental browser freezing
+    
+    attackActive = true;
+    
+    // 1. Trigger the cinematic alert
+    matrixLog("[WARNING] MASSIVE MULTI-VECTOR SATURATION ATTACK DETECTED.");
+    updateNews("MULTIPLE LAUNCHES DETECTED. SWARM TACTICS EMPLOYED.", "EARLY WARNING RADAR");
+    if(audio) audio.playRedAlert();
+    speakTTS(
+        "התראת נחיל. עשרות מטרות במעוף. הפעלת נוהל הגנה רב-שכבתית.", 
+        "he-IL", 
+        "Swarm warning. Multiple bogeys inbound. Initiate multi-tier defense protocols.", 
+        "AEGIS C2"
+    );
+
+    // 2. Auto-Run Background Monte Carlo Simulation
+    let runs = 1000;
+    let hitA = 0, hitS = 0, hitT = 0;
+    let pkA = AD_DATA.ARROW.pk, pkS = AD_DATA.STUNNER.pk, pkT = AD_DATA.TAMIR.pk;
+
+    // Check for Electronic Warfare degradation
+    if (ewJammingActive > 0) { pkA *= 0.70; pkS *= 0.70; pkT *= 0.70; }
+
+    for(let i = 0; i < runs; i++) {
+        if(Math.random() < pkA) hitA++;
+        if(Math.random() < pkS) hitS++;
+        if(Math.random() < pkT) hitT++;
+    }
+
+    // Calculate joint probability of a threat bypassing all active layers
+    let expectedLeakage = (1 - (hitA / runs)) * (1 - (hitS / runs)) * (1 - (hitT / runs));
+
+    // Output to the Tactical Matrix Log
+    matrixLog(`[AI DIRECTOR] MONTE CARLO SIM (n=${runs}) COMPLETE.`);
+    matrixLog(`[AI DIRECTOR] SATURATION LEAKAGE PROBABILITY: ${(expectedLeakage * 100).toFixed(3)}% PER THREAT.`);
+
+    // Flash the Combinatorial WTA Equation in the background
+    if (typeof flashEquation === "function") {
+        flashEquation("\\min \\sum \\left[ \\prod (1 - P_{ij})^{x_{ij}} \\right] V_j", "#ff00ff");
+    }
+
+    // 3. Initiate the Strike Waves
+    let timeOffset = 0;
+
+    // WAVE 1: Drone Swarm (12x SHAHED)
+    for(let i=0; i<12; i++) {
+        setTimeout(() => { launchThreat('SHAHED'); }, timeOffset + Math.random() * 2500);
+    }
+    
+    // WAVE 2: Medium-Range Ballistic Missiles (4x EMAD)
+    timeOffset += 3000;
+    for(let i=0; i<4; i++) {
+        setTimeout(() => { launchThreat('EMAD'); }, timeOffset + Math.random() * 1500);
+    }
+
+    // WAVE 3: Maneuverable Re-entry Vehicles (3x KHEIBAR)
+    timeOffset += 2500;
+    for(let i=0; i<3; i++) {
+        setTimeout(() => { launchThreat('KHEIBAR'); }, timeOffset + Math.random() * 1000);
+    }
+
+    // WAVE 4: Hypersonic Glide Vehicles (2x FATTAH)
+    timeOffset += 2500;
+    for(let i=0; i<2; i++) {
+        setTimeout(() => { launchThreat('FATTAH'); }, timeOffset + Math.random() * 800);
+    }
+}
+
+// ==========================================
+// 8. RENDERING & ANIMATION LOOP
+// ==========================================
+
+function drawTacticalView() {
+    let safeW = Number.isFinite(width) && width > 0 ? width : window.innerWidth - 480 || 800;
+    let safeH = Number.isFinite(height) && height > 0 ? height : window.innerHeight || 600;
+
+    if (opticsMode === 'REAL') {
+        let bgGrad = ctx.createLinearGradient(0, 0, 0, safeH);
+        bgGrad.addColorStop(0, "#010205"); bgGrad.addColorStop(1, "#050a15");
+        ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, safeW, safeH);
+
+        ctx.fillStyle = "#fff";
+        ambientDebris.forEach(d => {
+            d.a += d.va; if (d.a > 1 || d.a < 0) d.va *= -1;
+            ctx.globalAlpha = Math.max(0, Math.min(1, d.a)) * 0.6;
+            ctx.beginPath(); ctx.arc(d.x, d.y, d.s, 0, Math.PI*2); ctx.fill();
+        });
+        ctx.globalAlpha = 1.0;
+    } else {
+        ctx.fillStyle = "#0a110a"; ctx.fillRect(0, 0, safeW, safeH);
+        ctx.strokeStyle = "rgba(0, 255, 85, 0.15)"; ctx.lineWidth = 2;
+        let gridSize = 100; let offset = (renderTime * 0.5) % gridSize;
+        for(let i=0; i<safeW; i+=gridSize) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, safeH); ctx.stroke(); }
+        for(let i=offset; i<safeH; i+=gridSize) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(safeW, i); ctx.stroke(); }
+
+        let sweepAngle = (renderTime * 0.02) % (Math.PI * 2);
+        ctx.save(); ctx.translate(safeW/2, safeH); ctx.rotate(sweepAngle);
+        let maxDim = Math.max(safeW, safeH) || 1000;
+        let grad = ctx.createLinearGradient(0, 0, 0, maxDim);
+        grad.addColorStop(0, "rgba(0, 255, 85, 0.1)"); grad.addColorStop(1, "rgba(0, 255, 85, 0)");
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, maxDim, 0, -0.3, true); ctx.lineTo(0,0); ctx.fill();
+        ctx.restore();
+    }
+
+    if (chronoShiftActive > 0) {
+        ctx.fillStyle = "rgba(0, 255, 255, 0.1)"; ctx.fillRect(0, 0, safeW, safeH);
+        ctx.strokeStyle = "rgba(0, 255, 255, 0.5)"; ctx.lineWidth = 5; ctx.strokeRect(0,0,safeW,safeH);
+    }
+    if (ewJammingActive > 0) {
+        ctx.fillStyle = `rgba(255, 0, 255, ${Math.random() * 0.05})`; ctx.fillRect(0, 0, safeW, safeH);
+        if (Math.random() > 0.8) { ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.fillRect(Math.random()*safeW, Math.random()*safeH, 100, 5); }
+    }
+
+    ctx.save();
+    ctx.font = "11px Share Tech Mono";
+    ctx.fillStyle = opticsMode === 'REAL' ? "rgba(255, 255, 255, 0.3)" : "rgba(0, 255, 65, 0.6)";
+    ctx.textAlign = "left";
+    for(let i=0; i<bgLog.length; i++) { ctx.fillText(bgLog[i], 20, 30 + i * 14); }
+    ctx.restore();
+
+    particles.forEach(p => p.draw(ctx));
+    shockwaves.forEach(s => s.draw(ctx));
+    threats.forEach(t => t.draw(ctx));
+    interceptors.forEach(i => i.draw(ctx));
+
+    Object.keys(BATTERIES).forEach(key => {
+        let b = BATTERIES[key]; ctx.save();
+        if (opticsMode === 'REAL') { ctx.fillStyle = "rgba(10, 15, 10, 0.9)"; ctx.strokeStyle = `rgba(${b.color}, 0.5)`; ctx.lineWidth = 2; } 
+        else { ctx.fillStyle = "rgba(20, 30, 20, 0.9)"; ctx.strokeStyle = `rgba(${b.color}, 0.8)`; ctx.lineWidth = 1.5; }
+        
+        ctx.beginPath(); ctx.moveTo(b.x - 25, b.y + 15); ctx.lineTo(b.x + 25, b.y + 15); ctx.lineTo(b.x + 20, b.y - 5); ctx.lineTo(b.x - 20, b.y - 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(b.x - 10, b.y - 5); ctx.lineTo(b.x - 15, b.y - 25); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(b.x, b.y - 5); ctx.lineTo(b.x, b.y - 28); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(b.x + 10, b.y - 5); ctx.lineTo(b.x + 15, b.y - 25); ctx.stroke();
+
+        ctx.fillStyle = (inventory[key] === 0 || deepReloadTimers[key] > 0) ? `rgba(255, 0, 0, 0.15)` : `rgba(${b.color}, 0.15)`;
+        ctx.beginPath(); ctx.arc(b.x, b.y, 45, Math.PI, 0); ctx.fill();
+        
+        ctx.fillStyle = `rgb(${b.color})`; ctx.font = "11px Share Tech Mono"; ctx.textAlign = "center";
+        ctx.fillText(deepReloadTimers[key] > 0 ? "RELOADING" : b.name, b.x, b.y + 28);
+        ctx.restore();
+    });
+}
+
+function loop() {
+    renderTime++;
+    if (chronoShiftActive > 0) chronoShiftActive--;
+    if (ewJammingActive > 0) ewJammingActive--;
+    
+    Object.keys(fireCooldowns).forEach(k => { if(fireCooldowns[k] > 0) fireCooldowns[k]--; });
+    Object.keys(deepReloadTimers).forEach(k => {
+        if(deepReloadTimers[k] > 0) {
+            deepReloadTimers[k]--;
+            if(deepReloadTimers[k] === 0) {
+                inventory[k] = maxInventory[k]; 
+                if(audio) audio.playUIClick(); 
+                matrixLog(`[LOGISTICS] MAG-RELOAD COMPLETE: ${k} BATTERY ONLINE.`);
+            }
+        }
+    });
+
+    let safeH = Number.isFinite(height) && height > 0 ? height : window.innerHeight || 600;
+    let safeW = Number.isFinite(width) && width > 0 ? width : window.innerWidth - 480 || 800;
+
+    if (!isPaused) {
+        simTime++;
+        if (simTime % 15 === 0 && threats.length > 0) {
+            threats.forEach(t => {
+                if(t.isDrillTarget) return; 
+                let assigned = interceptors.filter(i => i.target === t).length;
+                if (assigned < 1 && !t.data.isDecoy) {
+                    if (t.data.isDrone && inventory.TAMIR > 0 && fireCooldowns.TAMIR === 0) {
+                        inventory.TAMIR--; fireCooldowns.TAMIR = AD_DATA.TAMIR.cooldown;
+                        if(inventory.TAMIR === 0 && deepReloadTimers.TAMIR === 0) deepReloadTimers.TAMIR = 1200;
+                        interceptors.push(new Interceptor(t, 'TAMIR'));
+                    } else if (t.y > 0 && t.y < safeH * 0.35 && inventory.ARROW > 0 && fireCooldowns.ARROW === 0 && Math.random() < 0.6) {
+                        inventory.ARROW--; fireCooldowns.ARROW = AD_DATA.ARROW.cooldown;
+                        if(inventory.ARROW === 0 && deepReloadTimers.ARROW === 0) deepReloadTimers.ARROW = 1200;
+                        interceptors.push(new Interceptor(t, 'ARROW'));
+                    } else if (t.y >= safeH * 0.35 && t.y < safeH * 0.7 && inventory.STUNNER > 0 && fireCooldowns.STUNNER === 0) {
+                        inventory.STUNNER--; fireCooldowns.STUNNER = AD_DATA.STUNNER.cooldown;
+                        if(inventory.STUNNER === 0 && deepReloadTimers.STUNNER === 0) deepReloadTimers.STUNNER = 1200;
+                        interceptors.push(new Interceptor(t, 'STUNNER'));
+                    } else if (t.y >= safeH * 0.7 && t.y < safeH * 0.9 && inventory.TAMIR > 0 && fireCooldowns.TAMIR === 0) {
+                        inventory.TAMIR--; fireCooldowns.TAMIR = AD_DATA.TAMIR.cooldown;
+                        if(inventory.TAMIR === 0 && deepReloadTimers.TAMIR === 0) deepReloadTimers.TAMIR = 1200;
+                        interceptors.push(new Interceptor(t, 'TAMIR'));
+                    }
+                }
+            });
+        }
+
+        particles = particles.filter(p => p.update());
+        shockwaves = shockwaves.filter(s => s.update());
+        
+        for(let i = threats.length - 1; i >= 0; i--) {
+            let t = threats[i];
+            if (t.isDrillTarget && t.y > safeH * 0.1 && !t.drillHandled) {
+                t.drillHandled = true; startDefenseDrillPhase(t); continue;
+            }
+            if(!t.update()) {
+                if(!t.data.isDecoy) { 
+                    battleStats.leaks++; updateScores(false, 500); 
+                    createExplosion(t.x, safeH, 2, false, true); 
+                    if(audio){ audio.playExplosion(false, true); audio.playRedAlert(); }
+                }
+                threats.splice(i, 1);
+            }
+        }
+        interceptors = interceptors.filter(i => i.update());
+        checkAttackStatus();
+    }
+    
+    ctx.fillStyle = opticsMode === 'REAL' ? "#010205" : "#0a110a"; 
+    ctx.fillRect(0, 0, safeW, safeH); 
+    ctx.save();
+    
+    if (currentView === 'TACTICAL') {
+        if (screenShake > 0) { 
+            ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake); 
+            if(!isPaused) { screenShake *= 0.9; if (screenShake < 0.5) screenShake = 0; } 
+        }
+        drawTacticalView(); 
+    } else {
+        // Fallback placeholder for other views
+        ctx.fillStyle = "#030604";
+        ctx.fillRect(0, 0, safeW, safeH);
+        ctx.fillStyle = "#00ff55";
+        ctx.font = "20px 'Share Tech Mono', monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(`[ ${currentView} MODULE OFFLINE / AWAITING DATA ]`, safeW / 2, safeH / 2);
+    }
+    ctx.restore();
+
+document.getElementById('threat-count').innerText = threats.length;
+    document.getElementById('leak-count').innerText = battleStats.leaks;
+    
+    // Update In-Flight Interceptor HUD
+    document.getElementById('arr-count').innerText = interceptors.filter(i => i.type === 'ARROW').length;
+    document.getElementById('stu-count').innerText = interceptors.filter(i => i.type === 'STUNNER').length;
+    document.getElementById('tam-count').innerText = interceptors.filter(i => i.type === 'TAMIR').length;
+    requestAnimationFrame(loop);
+}
+
+// AI Director
+setInterval(() => {
+    if (!attackActive && threats.length === 0) return;
+    if (isPaused) return;
+    let roll = Math.random();
+    if (roll < 0.05) {
+        matrixLog("[ALERT] OPFOR CYBER INTRUSION DETECTED. SENSORS DEGRADED.");
+        updateNews("CYBER ATTACK HITS MILITARY INFRASTRUCTURE. RADAR GLITCHES REPORTED.", "CYBER COMMAND");
+        opticsMode = 'RADAR'; 
+        screenShake = 15;
+        if(audio) audio.playAlarm();
+        speakTTS("מתקפת סייבר", "he-IL"); 
+    } else if (roll < 0.10) {
+        matrixLog("[ALERT] UNANNOUNCED LOW-ALT TRACK DETECTED.");
+        let t = new Threat('SHAHED'); threats.push(t); battleStats.threatsLaunched++;
+        if(audio) audio.playAlarm();
+    } else if (roll < 0.15) {
+        weather.windSpeed = (Math.random() * 30 - 15).toFixed(1);
+        matrixLog(`[METEO] SEVERE SHEAR WIND SHIFT DETECTED: ${weather.windSpeed} m/s.`);
+    } else if (roll < 0.20) {
+        matrixLog("[INTEL] ALLIED AWACS HAS PROVIDED UPDATED TARGETING TELEMETRY.");
+        inventory.TAMIR = Math.min(maxInventory.TAMIR, inventory.TAMIR + 5); 
+    }
+}, 6000);
+
+document.getElementById('init-overlay').addEventListener('click', function() {
+    if ('speechSynthesis' in window) { let unlockMsg = new SpeechSynthesisUtterance(""); window.speechSynthesis.speak(unlockMsg); }
+    if (!audio) audio = new SynthAudio(); audio.resume(); audio.playUIClick(); audio.startBGM(); 
+    this.style.display = 'none';
+    setTimeout(advanceStage, 1000); 
+    requestAnimationFrame(loop);
+});
+</script>
+</body>
+</html>
